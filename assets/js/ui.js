@@ -87,15 +87,15 @@ export class AppUI {
   setCredential(provider, value, remember) { setCredential(provider, value, { persist: remember, settings: this.settings }); }
   setCustomCredential(id, value, remember) {
     this.settings.customCredentials ||= {};
-    sessionStorage.removeItem(`rns.session.${id}`);
+    sessionStorage.removeItem(`pns.session.${id}`);
     if (remember) this.settings.customCredentials[id] = value;
     else {
       delete this.settings.customCredentials[id];
-      if (value) sessionStorage.setItem(`rns.session.${id}`, value);
+      if (value) sessionStorage.setItem(`pns.session.${id}`, value);
     }
   }
   getCredential(provider, model) {
-    if (model?.credentialId) return this.settings.customCredentials?.[model.credentialId] || sessionStorage.getItem(`rns.session.${model.credentialId}`) || "";
+    if (model?.credentialId) return this.settings.customCredentials?.[model.credentialId] || sessionStorage.getItem(`pns.session.${model.credentialId}`) || "";
     return getCredential(provider, this.settings);
   }
   persistSettings() { this.settings = saveSettings(this.settings); this.settingsUI.updateSettings(this.settings); this.ai.updateSettings(this.settings); }
@@ -395,7 +395,7 @@ export class AppUI {
   updateCustomPreview() { const strip = document.querySelector("#customStrip"), preview = document.querySelector("#customInstructionPreview"), has = !!this.state.customInstruction; strip.classList.toggle("hidden", !has); preview.textContent = has ? this.state.customInstruction : "Add an instruction to steer the selected mode."; }
   openCustomDialog() { this.customInstruction.value = this.state.customInstruction || ""; if (!this.customDialog.open) this.customDialog.showModal(); }
   setupSplitter() { const splitter = document.querySelector("#splitter"); let dragging = false; splitter.addEventListener("pointerdown", e => { dragging = true; splitter.setPointerCapture(e.pointerId); document.body.style.cursor = "col-resize"; }); splitter.addEventListener("pointermove", e => { if (!dragging) return; const stage = document.querySelector("#editorStage").getBoundingClientRect(); this.state.paneRatio = Math.max(25, Math.min(75, ((e.clientX-stage.left)/stage.width)*100)); this.applyPaneRatio(); }); splitter.addEventListener("pointerup", () => { dragging = false; document.body.style.cursor = ""; saveState(this.state); }); }
-  toggleTheme() { const root = document.documentElement; const next = root.dataset.theme === "dark" ? "light" : "dark"; root.dataset.theme = next; localStorage.setItem("rns.theme", next); }
-  restoreTheme() { const saved = localStorage.getItem("rns.theme"); if (saved) document.documentElement.dataset.theme = saved; }
+  toggleTheme() { const root = document.documentElement; const next = root.dataset.theme === "dark" ? "light" : "dark"; root.dataset.theme = next; localStorage.setItem("pns.theme", next); }
+  restoreTheme() { const saved = localStorage.getItem("pns.theme"); if (saved) document.documentElement.dataset.theme = saved; }
   toast(message, type = "") { const el = document.createElement("div"); el.className = `toast ${type}`; el.textContent = message; this.toastRegion.appendChild(el); setTimeout(() => el.remove(), 4200); }
 }

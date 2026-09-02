@@ -1,8 +1,8 @@
 import { WORKSPACE_STORAGE_VERSION } from "../config.js";
 
-const KEY = "rns.workspace.v2";
-const LEGACY_KEY = "rns.workspace.v1";
-const CLEAR_MARKER = "rns.workspace.cleared.v1";
+const KEY = "pns.workspace.v2";
+const LEGACY_KEY = "pns.workspace.v1";
+const CLEAR_MARKER = "pns.workspace.cleared.v1";
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 

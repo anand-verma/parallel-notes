@@ -1,5 +1,5 @@
 const SW_APP_VERSION = "0.4.0";
-const SW_SHELL_CACHE = `rns-shell-v${SW_APP_VERSION}`;
+const SW_SHELL_CACHE = `pns-shell-v${SW_APP_VERSION}`;
 const SW_SHELL = [
   "./",
   "./index.html",

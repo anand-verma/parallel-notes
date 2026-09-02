@@ -1,5 +1,5 @@
-const KEY = "rns.settings.v2";
-const LEGACY_KEY = "rns.settings.v1";
+const KEY = "pns.settings.v2";
+const LEGACY_KEY = "pns.settings.v1";
 const VERSION = 2;
 
 const defaults = () => ({

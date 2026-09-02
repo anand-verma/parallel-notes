@@ -4,7 +4,7 @@ export function getCredential(provider, settings, model = null) {
   const id = model?.credentialId || provider;
   if (sessionKeys.has(id)) return sessionKeys.get(id) || "";
   if (model?.credentialId) {
-    return settings?.customCredentials?.[model.credentialId] || sessionStorage.getItem(`rns.session.${model.credentialId}`) || "";
+    return settings?.customCredentials?.[model.credentialId] || sessionStorage.getItem(`pns.session.${model.credentialId}`) || "";
   }
   return settings?.apiKeys?.[provider] || "";
 }
