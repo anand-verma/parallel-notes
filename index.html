@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Parallel Notes is a privacy-first rich-text workspace for compressing parent notes into concise, structured revision notes with local browser AI and optional cloud models.">
+  <meta name="keywords" content="AI notes, revision notes, note summarizer, note compressor, UPSC notes, study notes, local AI, WebLLM, privacy-first notes, rich text editor">
+  <meta name="author" content="Anand Verma">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="application-name" content="Parallel Notes">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Parallel Notes — Write, Compress, Refine">
+  <meta property="og:description" content="Compress full parent notes or selected passages into editable revision notes using local browser AI or your preferred API model. Your source stays unchanged.">
+  <meta property="og:url" content="https://anand-verma.github.io/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Parallel Notes">
+  <meta name="twitter:description" content="Privacy-first AI note compression with local browser AI, editable rich-text results, and source-preserving workflows.">
+  <link rel="canonical" href="https://anand-verma.github.io/">
+  <title>Parallel Notes — AI Note Compression & Revision Notes</title>
+  <link rel="stylesheet" href="./assets/css/app.css?v=0.4.0">
+</head>
+<body>
+  <div id="app" class="app-shell">
+
+    <main class="workspace">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <div class="brand">
+            <div id="brandText">
+              <div class="brand-name">Parallel Notes</div>
+              <div class="brand-subtitle">Write · Compress · Refine</div>
+            </div>
+          </div>
+          <button class="mini-btn" id="collapseSidebarBtn" title="Collapse sidebar">‹</button>
+        </div>
+
+        <div class="doc-list-head">
+          <span>Documents</span>
+          <button class="mini-btn" id="sidebarNewBtn" title="New document">＋</button>
+        </div>
+        <div id="documentList" class="document-list"></div>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-utils">
+            <span class="save-state" id="saveState">Saved</span>
+            <div class="sidebar-utils-actions">
+              <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+              <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
+            </div>
+          </div>
+          <div style="text-align: center; color: var(--muted-2); font-size: 11px; padding: 8px 12px;">
+            <div>Built with <span aria-hidden="true">❤️</span> by <a class="creator-link" href="https://anand-verma.github.io/" target="_blank" rel="noopener noreferrer">Anand</a></div>
+            <a class="feedback-link" href="https://docs.google.com/forms/d/e/1FAIpQLScfw6Ex_n5BXu-yqykG25pDaENT91RoOCzTO32eJvDEzj7JRA/viewform" target="_blank" rel="noopener noreferrer">Feedback</a>
+          </div>
+        </div>
+      </aside>
+
+      <section class="main-area">
+        <div class="ai-toolbar" style="flex-wrap: wrap; padding: 8px 16px;">
+          <div class="ai-left">
+            <button class="icon-btn sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle sidebar" aria-label="Toggle sidebar">☰</button>
+            <div class="ai-chip"><span class="status-dot" id="aiDot"></span><span id="aiStatus">AI not loaded</span></div>
+            <label class="model-select">
+              <span>Model</span>
+              <select id="modelSelect" disabled>
+                <option>Detecting models…</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="ai-controls">
+            <label class="mode-select">
+              <span>Mode</span>
+              <select id="modeSelect">
+                <option value="short">Short Notes</option>
+                <option value="super">Super-Short</option>
+                <option value="structured">Structured Notes</option>
+                <option value="comparison">Comparison</option>
+                <option value="flow">Concept / Flow</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <button class="secondary-btn" id="customPromptBtn">Customize</button>
+            <button class="primary-btn" id="summarizeBtn">
+              <span class="spark">✦</span> Summarize
+            </button>
+          </div>
+        </div>
+
+        <div class="custom-strip hidden" id="customStrip">
+          <div class="custom-label">Custom instruction</div>
+          <div id="customInstructionPreview">Add an instruction to steer the selected mode.</div>
+          <button class="text-btn" id="editCustomBtn">Edit</button>
+        </div>
+
+        <div class="editor-stage" id="editorStage">
+          <section class="pane pane-source" id="sourcePane">
+            <div class="pane-head">
+              <div>
+                <span class="pane-kicker">SOURCE</span>
+                <span class="pane-title">Parent Notes</span>
+              </div>
+              <div class="pane-actions">
+                <button class="mini-btn" id="maxSourceBtn" title="Maximize pane">⤢</button>
+                <button class="mini-btn" data-action="copy-source" title="Copy notes">⧉</button>
+                <button class="mini-btn" data-action="export-source" title="Export notes">⤓</button>
+              </div>
+            </div>
+            <div class="editor-wrap">
+              <div id="sourceEditor" class="editor-host"></div>
+            </div>
+            <div class="pane-foot">
+              <span id="sourceMeta">0 words</span>
+              <span>Source remains unchanged by AI</span>
+            </div>
+          </section>
+
+          <div class="splitter" id="splitter" role="separator" aria-label="Resize panes"></div>
+
+          <section class="pane pane-result" id="resultPane">
+            <div class="pane-head">
+              <div>
+                <span class="pane-kicker result-kicker">RESULT</span>
+                <span class="pane-title">Working Draft</span>
+              </div>
+              <div class="pane-actions">
+                <button class="mini-btn" id="maxResultBtn" title="Maximize pane">⤢</button>
+                <button class="mini-btn" data-action="copy-result" title="Copy draft">⧉</button>
+                <button class="mini-btn" data-action="export-result" title="Export draft">⤓</button>
+              </div>
+            </div>
+            <div class="editor-wrap">
+              <div id="resultEditor" class="editor-host"></div>
+              <div class="empty-result" id="emptyResult">
+                <div class="empty-icon">✦</div>
+                <strong>Your AI draft will appear here</strong>
+                <span>Choose a mode, then summarize. You can edit the result freely.</span>
+              </div>
+            </div>
+            <div class="pane-foot">
+              <span id="resultMeta">0 words</span>
+              <span id="generationMeta">Ready</span>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+    <dialog id="customDialog" class="modal">
+      <form method="dialog" id="customForm">
+        <div class="modal-head">
+          <div>
+            <div class="eyebrow">Prompt Layer</div>
+            <h2>Custom instruction</h2>
+          </div>
+          <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+        </div>
+        <p class="modal-copy">Your instruction is added on top of the selected mode. It does not replace the source-bound safety rules.</p>
+        <textarea id="customInstruction" rows="7" placeholder="e.g. Prioritize constitutional articles and committee names. Use compact comparison tables where useful."></textarea>
+        <div class="modal-actions">
+          <button class="secondary-btn" value="cancel">Cancel</button>
+          <button class="primary-btn" id="saveCustomBtn" value="default">Apply instruction</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="modelDialog" class="modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div>
+            <div class="eyebrow">Local AI</div>
+            <h2>First-run model setup</h2>
+          </div>
+          <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+        </div>
+        <p class="modal-copy">The first AI run downloads the selected model into browser-managed storage. Later runs reuse the cached files.</p>
+        <div class="model-info" id="modelInfo"></div>
+        <div class="progress-header"><span id="modelProgressLabel">Waiting…</span><span id="modelProgressPercent">0%</span></div>
+        <div class="progress-track"><div class="progress-bar" id="modelProgress"></div></div>
+        <div class="modal-actions">
+          <button class="secondary-btn" value="cancel">Not now</button>
+          <button class="primary-btn" id="loadModelBtn" value="default">Load model</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog" class="modal">
+      <form method="dialog" id="settingsForm">
+        <div class="modal-head">
+          <div>
+            <div class="eyebrow">Preferences</div>
+            <h2>Settings & API Keys</h2>
+          </div>
+          <button class="icon-btn" type="button" onclick="document.getElementById('settingsDialog').close()" aria-label="Close">×</button>
+        </div>
+        <div class="modal-field" style="margin-top:16px;">
+          <label>OpenAI API Key</label>
+          <input type="password" id="openaiKey" placeholder="sk-..." class="form-input">
+        </div>
+        <div class="modal-field" style="margin-top:12px;">
+          <label>Gemini API Key</label>
+          <input type="password" id="geminiKey" placeholder="AIza..." class="form-input" autocomplete="off">
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px;">
+          <input type="checkbox" id="rememberApiKeys" checked> Remember API keys on this device
+        </label>
+        <p class="modal-copy" style="margin-top:10px;">Keys are sent directly from this browser to the selected provider. Remembered keys are stored in this browser's local storage; this is convenient storage, not a secure secret vault.</p>
+        
+        <div class="modal-field" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+          <label>Custom OpenAI-Compatible API</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+            <input type="text" id="customApiLabel" placeholder="Label (optional)" class="form-input">
+            <input type="text" id="customApiModelId" placeholder="Model ID" class="form-input">
+            <input type="url" id="customApiBaseUrl" placeholder="https://api.example.com/v1" class="form-input" style="grid-column:1/-1;">
+            <input type="password" id="customApiKey" placeholder="API key (optional)" class="form-input" style="grid-column:1/-1;" autocomplete="off">
+          </div>
+          <button type="button" class="secondary-btn" id="addCustomModelBtn" style="margin-top:8px;width:100%;">Add custom API model</button>
+          <p class="modal-copy" style="margin-top:8px;">Works with OpenAI-compatible chat-completions endpoints such as compatible gateways or local servers. The endpoint must allow browser CORS requests.</p>
+          <div id="customModelList" class="custom-model-list"></div>
+        </div>
+
+        <div class="modal-field" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+          <label>Local Models Cache</label>
+          <div id="localModelCacheList" class="cache-list">
+            <p class="modal-copy">Checking cache status...</p>
+          </div>
+          <button type="button" class="secondary-btn" id="clearCacheBtn" style="margin-top:12px; width:100%; padding:8px; color: var(--danger);">Clear All Local Cache</button>
+          <p class="modal-copy" style="margin-top:8px;">This deletes all downloaded local models to free up disk space.</p>
+        </div>
+        
+        <div class="modal-field danger-zone" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+          <label>Workspace Data</label>
+          <p class="modal-copy">Permanently remove all saved workspace documents from this site. API keys, settings, and downloaded local AI models are not removed.</p>
+          <button type="button" class="secondary-btn danger-action" id="clearWorkspaceBtn" style="margin-top:8px;width:100%;">Delete All Workspace Documents</button>
+          <p class="modal-copy" style="margin-top:8px;">To remove everything this site has stored, use your browser’s site-data controls. That can also remove settings, session data, caches, and service-worker data.</p>
+        </div>
+
+        <div class="modal-actions" style="margin-top:20px;">
+          <button type="submit" class="primary-btn">Save settings</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+
+  <script type="module" src="./assets/js/app.js?v=0.4.0"></script>
+</body>
+</html>
