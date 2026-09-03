@@ -333,7 +333,33 @@ export class AppUI {
     } catch (err) {
       const isCancelled = err?.name === "AbortError";
       document.querySelector("#generationMeta").textContent = isCancelled ? "Cancelled" : "Generation failed";
-      if (!isCancelled) this.toast(err.message || "Generation failed.", "error");
+      
+      const msg = err.message || "";
+      if (!isCancelled) {
+        if (msg.includes("Download this model first")) {
+          this.showInstruction(
+            "Model Not Downloaded",
+            "This local AI model needs to be downloaded before it can be used. This usually only takes a few minutes.",
+            [
+              { text: "Download from Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
+            ]
+          );
+        } else if (msg.includes("API key is missing") || msg.includes("Gemini API key is missing")) {
+          const isGemini = msg.includes("Gemini");
+          const links = [
+            { text: "Add API key in Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
+          ];
+          if (isGemini) {
+            links.push({ text: "Get Gemini API Key", href: "https://aistudio.google.com/app/apikey" });
+          } else {
+            links.push({ text: "Get OpenAI API Key", href: "https://platform.openai.com/api-keys" });
+          }
+          this.showInstruction("API Key Required", "You must configure an API key to use this cloud model.", links);
+        } else {
+          this.toast(msg || "Generation failed.", "error");
+        }
+      }
+      
       // Save any partial content that was streamed before the error
       this.onEditorUpdate("result");
     } finally {
@@ -556,5 +582,37 @@ export class AppUI {
   }
   toggleTheme() { const root = document.documentElement; const next = root.dataset.theme === "dark" ? "light" : "dark"; root.dataset.theme = next; localStorage.setItem("pns.theme", next); }
   restoreTheme() { const saved = localStorage.getItem("pns.theme"); if (saved) document.documentElement.dataset.theme = saved; }
+  showInstruction(title, message, links = []) {
+    const dialog = document.querySelector("#instructionDialog");
+    if (!dialog) return;
+    document.querySelector("#instructionTitle").textContent = title;
+    document.querySelector("#instructionMessage").textContent = message;
+    
+    const linksContainer = document.querySelector("#instructionLinks");
+    linksContainer.innerHTML = "";
+    links.forEach(link => {
+      if (link.href) {
+        const a = document.createElement("a");
+        a.href = link.href;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.className = "secondary-btn";
+        a.style.display = "block";
+        a.style.textAlign = "center";
+        a.textContent = link.text;
+        linksContainer.appendChild(a);
+      } else if (link.action) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "secondary-btn";
+        btn.style.width = "100%";
+        btn.textContent = link.text;
+        btn.onclick = link.action;
+        linksContainer.appendChild(btn);
+      }
+    });
+    
+    dialog.showModal();
+  }
   toast(message, type = "") { const el = document.createElement("div"); el.className = `toast ${type}`; el.textContent = message; this.toastRegion.appendChild(el); setTimeout(() => el.remove(), 4200); }
 }

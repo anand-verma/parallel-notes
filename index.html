@@ -340,6 +340,23 @@
         </div>
       </form>
     </dialog>
+
+    <dialog id="instructionDialog" class="modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div>
+            <div class="eyebrow" id="instructionEyebrow">Action Required</div>
+            <h2 id="instructionTitle">Action Required</h2>
+          </div>
+          <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+        </div>
+        <p class="modal-copy" id="instructionMessage" style="margin-bottom: 20px;">Please follow the instructions below.</p>
+        <div id="instructionLinks" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; padding: 0 16px;"></div>
+        <div class="modal-actions">
+          <button class="primary-btn" value="default">Got it</button>
+        </div>
+      </form>
+    </dialog>
   </div>
 
   <script type="module" src="./assets/js/app.js?v=0.5.0"></script>
