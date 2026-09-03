@@ -59,6 +59,26 @@ export class AppUI {
     $("#sidebarNewBtn").onclick = () => this.newDoc();
     $("#themeBtn").onclick = () => this.toggleTheme();
     $("#settingsBtn").onclick = () => this.settingsUI.open();
+    
+    // Laptop collapsed sidebar click-to-expand
+    this.sidebar.addEventListener("click", (e) => {
+      // If collapsed and we clicked the empty space of the sidebar (not a button)
+      if (this.sidebar.classList.contains("collapsed") && window.innerWidth > 700) {
+        if (!e.target.closest("button") && !e.target.closest("a")) {
+          this.toggleSidebar();
+        }
+      }
+    });
+
+    // Mobile sidebar overlay click-to-collapse
+    const overlay = document.querySelector("#sidebarOverlay");
+    if (overlay) {
+      overlay.addEventListener("click", () => {
+        if (window.innerWidth <= 700 && !this.sidebar.classList.contains("collapsed")) {
+          this.toggleSidebar();
+        }
+      });
+    }
     $("#settingsForm").onsubmit = e => {
       e.preventDefault();
       try {
@@ -479,6 +499,8 @@ export class AppUI {
       btn.title = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
       btn.setAttribute("aria-label", btn.title);
     }
+    const overlay = document.querySelector("#sidebarOverlay");
+    if (overlay) overlay.classList.toggle("active", !isCollapsed);
   }
   toggleMaximizePane(paneId, btnEl) {
     if (this.maximizedPane === paneId) { this.maximizedPane = null; document.querySelector("#sourcePane").classList.remove("hidden"); document.querySelector("#resultPane").classList.remove("hidden"); document.querySelector("#splitter").classList.remove("hidden"); this.applyPaneRatio(); btnEl.textContent = "⤢"; btnEl.title = "Maximize pane"; return; }

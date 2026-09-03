@@ -64,12 +64,13 @@ button{cursor:pointer}
 .icon-btn{width:34px;height:34px;border-radius:9px}
 .icon-btn:hover,.mini-btn:hover{border-color:var(--border-strong);color:var(--text);background:var(--surface-2)}
 .avatar-btn{width:34px;height:34px;border-radius:50%;font-size:12px;font-weight:700;background:var(--surface-3)}
-.workspace{min-height:0;flex:1;display:flex}
+.workspace{min-height:0;flex:1;display:flex;position:relative}
+.sidebar-overlay { display: none; }
 .sidebar{
   width:238px;flex:0 0 238px;border-right:1px solid var(--border);background:var(--surface);
   padding:18px 12px 12px;display:flex;flex-direction:column;transition:.2s ease;
 }
-.sidebar.collapsed { width: 58px; flex-basis: 58px; padding: 18px 12px 12px; overflow: hidden; }
+.sidebar.collapsed { width: 58px; flex-basis: 58px; padding: 18px 12px 12px; overflow: hidden; cursor: pointer; }
 .sidebar.collapsed #brandText,
 .sidebar.collapsed .doc-list-head span,
 .sidebar.collapsed #documentList,
@@ -300,9 +301,10 @@ button{cursor:pointer}
   .ai-left,.ai-controls{width:100%;flex-wrap:wrap}.model-select{flex:1}.model-select select{max-width:none;flex:1}
 }
 @media (max-width:700px){
-  .workspace { overflow-x: hidden; }
-  .sidebar { width: 220px; flex: 0 0 220px; }
+  .workspace { overflow-x: hidden; position: relative; }
+  .sidebar { width: 220px; flex: 0 0 220px; position: absolute; height: 100%; z-index: 101; top: 0; left: 0; }
   .sidebar.collapsed { width: 0 !important; flex-basis: 0 !important; padding: 0 !important; }
+  .sidebar-overlay.active { display: block; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.4); z-index: 100; backdrop-filter: blur(2px); cursor: pointer; }
   .main-area { flex: 0 0 100%; transition: .2s ease; }
   .document-bar{padding:0 10px}
   .ai-toolbar{padding:9px 10px}
