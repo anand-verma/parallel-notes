@@ -1,5 +1,5 @@
 /** Core AppUI class handling layout, pane management, and interactions. */
-import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage } from "./state.js";
+import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, ensureUniqueTitle } from "./state.js";
 import { createEditor, editorText, wordCount } from "./editor.js";
 import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
@@ -114,6 +114,38 @@ export class AppUI {
     this.modelDialog.addEventListener("close", () => { if (this.modelDialog.returnValue !== "load") this.resolveModelLoad(false); });
     $("#summarizeBtn").onclick = () => this.ai.busy ? this.stopGeneration() : this.summarize();
     document.querySelectorAll("[data-action]").forEach(btn => btn.onclick = () => this.action(btn.dataset.action));
+    
+    // Document rename from pane
+    const sourceNameInput = $("#sourceDocName");
+    if (sourceNameInput) {
+      const handleRename = () => {
+        let newTitle = sourceNameInput.value.trim();
+        const doc = activeDocument(this.state);
+        
+        if (newTitle) {
+          if (newTitle !== doc.title) {
+            newTitle = ensureUniqueTitle(this.state, newTitle, doc.id);
+            doc.title = newTitle;
+            doc.updatedAt = Date.now();
+            saveState(this.state);
+            this.renderDocs();
+          }
+          sourceNameInput.value = newTitle;
+          const resultSpan = document.querySelector("#resultDocName");
+          if (resultSpan) resultSpan.textContent = `Draft - ${newTitle}`;
+        } else {
+          sourceNameInput.value = doc.title; // Revert if empty
+        }
+      };
+      sourceNameInput.addEventListener("blur", handleRename);
+      sourceNameInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sourceNameInput.blur();
+        }
+      });
+    }
+
     this.setupSplitter();
     // Close any open doc menu when clicking outside
     document.addEventListener("click", e => {
@@ -256,6 +288,13 @@ export class AppUI {
   /* ── Editor ──────────────────────────────────── */
   loadActiveDocument() {
     const doc = activeDocument(this.state);
+    
+    // Update pane titles
+    const sourceInput = document.querySelector("#sourceDocName");
+    const resultSpan = document.querySelector("#resultDocName");
+    if (sourceInput) sourceInput.value = doc.title || "Document Name";
+    if (resultSpan) resultSpan.textContent = `Draft - ${doc.title || "Document Name"}`;
+
     for (const key of ["source", "result"]) {
       const host = document.querySelector(`#${key}Editor`); this.editors[key]?.destroy(); host.innerHTML = "";
       this.editors[key] = createEditor(host, doc[key], () => this.onEditorUpdate(key));
@@ -491,13 +530,23 @@ export class AppUI {
   }
 
   renameDoc(doc) {
-    const newTitle = prompt("Rename document:", doc.title);
+    let newTitle = prompt("Rename document:", doc.title);
     if (newTitle === null || !newTitle.trim()) return;
+    newTitle = newTitle.trim();
+    if (newTitle === doc.title) return;
+    
     try {
-      doc.title = newTitle.trim();
+      newTitle = ensureUniqueTitle(this.state, newTitle, doc.id);
+      doc.title = newTitle;
       doc.updatedAt = Date.now();
       saveState(this.state);
       this.renderDocs();
+      if (activeDocument(this.state).id === doc.id) {
+        const sourceInput = document.querySelector("#sourceDocName");
+        const resultSpan = document.querySelector("#resultDocName");
+        if (sourceInput) sourceInput.value = newTitle;
+        if (resultSpan) resultSpan.textContent = `Draft - ${newTitle}`;
+      }
       this.toast("Document renamed.", "success");
     } catch (err) {
       this.toast(err.message || "Could not save renamed document.", "error");
