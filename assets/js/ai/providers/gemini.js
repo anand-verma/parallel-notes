@@ -1,3 +1,4 @@
+/** Google Gemini API integration and streaming logic. */
 function thinkingLevelFor(modelId) {
   const id = String(modelId || '').toLowerCase();
   // Gemini 3.6/3.5 Flash supports minimal; Gemini 3.1 Pro does not.

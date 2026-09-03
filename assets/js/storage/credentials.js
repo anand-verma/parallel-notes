@@ -1,3 +1,4 @@
+/** Secure API key and credential storage management. */
 const sessionKeys = new Map();
 
 export function getCredential(provider, settings, model = null) {

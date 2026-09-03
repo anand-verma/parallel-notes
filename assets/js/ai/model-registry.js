@@ -1,3 +1,4 @@
+/** Registry defining all available AI models (Local, Gemini, OpenAI). */
 import { API_MODELS, PREFERRED_MODEL_IDS } from "../config.js";
 
 /* ── Metadata helpers ───────────────────────────── */

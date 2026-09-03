@@ -1,3 +1,4 @@
+/** Robust Markdown-to-HTML parser with AI-delimiters and KaTeX sanitization. */
 let parserPromise;
 async function loadParser() {
   if (!parserPromise) parserPromise = Promise.all([

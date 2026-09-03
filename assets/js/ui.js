@@ -1,3 +1,4 @@
+/** Core AppUI class handling layout, pane management, and interactions. */
 import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage } from "./state.js";
 import { createEditor, editorText, wordCount } from "./editor.js";
 import { AIController } from "./ai/controller.js";

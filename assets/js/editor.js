@@ -1,3 +1,4 @@
+/** TipTap rich-text editor setup, extensions, and toolbar logic. */
 import { Editor, Node, mergeAttributes } from "https://esm.sh/@tiptap/core@3.29.2";
 import { StarterKit } from "https://esm.sh/@tiptap/starter-kit@3.29.2";
 import { Link } from "https://esm.sh/@tiptap/extension-link@3.29.2";

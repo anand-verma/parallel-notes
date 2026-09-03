@@ -1,3 +1,4 @@
+/** OpenAI-compatible API integration for models like GPT-5. */
 import { consumeSSE } from "../stream.js";
 
 function normalizeBaseUrl(baseUrl) {

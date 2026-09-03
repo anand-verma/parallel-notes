@@ -1,3 +1,4 @@
+/** System prompts and instruction templates for AI generation. */
 export const SOURCE_POLICY = `
 ROLE: SOURCE-BOUND UPSC GS NOTE COMPRESSION ENGINE
 

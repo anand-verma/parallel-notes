@@ -1,3 +1,4 @@
+/** IndexedDB/LocalStorage logic for persisting workspace documents. */
 import { WORKSPACE_STORAGE_VERSION } from "../config.js";
 
 const KEY = "pns.workspace.v2";

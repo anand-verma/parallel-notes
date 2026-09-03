@@ -1,3 +1,4 @@
+/** Rich-text clipboard service for copying editor content safely to Word/OneNote. */
 export async function copyRichText(editor) {
   const html = editor?.getHTML?.() || "";
   const text = editor?.getText?.({ blockSeparator: "\n\n" }) || "";
