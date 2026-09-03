@@ -495,7 +495,7 @@ export class AppUI {
     const isCollapsed = this.sidebar.classList.toggle("collapsed");
     const btn = document.querySelector("#sidebarToggleBtn");
     if (btn) {
-      btn.textContent = isCollapsed ? "▸" : "◂";
+      btn.classList.toggle("collapsed", isCollapsed);
       btn.title = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
       btn.setAttribute("aria-label", btn.title);
     }
@@ -503,9 +503,14 @@ export class AppUI {
     if (overlay) overlay.classList.toggle("active", !isCollapsed);
   }
   toggleMaximizePane(paneId, btnEl) {
-    if (this.maximizedPane === paneId) { this.maximizedPane = null; document.querySelector("#sourcePane").classList.remove("hidden"); document.querySelector("#resultPane").classList.remove("hidden"); document.querySelector("#splitter").classList.remove("hidden"); this.applyPaneRatio(); btnEl.textContent = "⤢"; btnEl.title = "Maximize pane"; return; }
+    const updateIcon = (btn, isMax) => {
+      const imax = btn.querySelector('.icon-max'), imin = btn.querySelector('.icon-min');
+      if (imax) imax.style.display = isMax ? 'none' : 'block';
+      if (imin) imin.style.display = isMax ? 'block' : 'none';
+    };
+    if (this.maximizedPane === paneId) { this.maximizedPane = null; document.querySelector("#sourcePane").classList.remove("hidden"); document.querySelector("#resultPane").classList.remove("hidden"); document.querySelector("#splitter").classList.remove("hidden"); this.applyPaneRatio(); updateIcon(btnEl, false); btnEl.title = "Maximize pane"; return; }
     this.maximizedPane = paneId; document.querySelector("#sourcePane").classList.toggle("hidden", paneId !== "sourcePane"); document.querySelector("#resultPane").classList.toggle("hidden", paneId !== "resultPane"); document.querySelector("#splitter").classList.add("hidden"); this.applyPaneRatio();
-    const other = paneId === "sourcePane" ? document.querySelector("#maxResultBtn") : document.querySelector("#maxSourceBtn"); other.textContent = "⤢"; other.title = "Maximize pane"; btnEl.textContent = "◫"; btnEl.title = "Restore split view";
+    const other = paneId === "sourcePane" ? document.querySelector("#maxResultBtn") : document.querySelector("#maxSourceBtn"); if (other) { updateIcon(other, false); other.title = "Maximize pane"; } updateIcon(btnEl, true); btnEl.title = "Restore split view";
   }
   applyPaneRatio() {
     const r = this.state.paneRatio || 50;

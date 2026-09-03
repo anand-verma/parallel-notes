@@ -301,6 +301,8 @@ button{cursor:pointer}
   .sidebar{width:190px;flex-basis:190px}.ai-toolbar{align-items:flex-start;flex-direction:column}
   .ai-left,.ai-controls{width:100%;flex-wrap:wrap}.model-select{flex:1}.model-select select{max-width:none;flex:1}
 }
+#sidebarToggleBtn svg { transition: transform 0.2s ease; }
+#sidebarToggleBtn.collapsed svg { transform: rotate(180deg); }
 @media (max-width:700px){
   .workspace { overflow-x: hidden; position: relative; }
   .sidebar { width: 220px; flex: 0 0 220px; position: absolute; height: 100%; z-index: 101; top: 0; left: 0; }
