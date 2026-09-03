@@ -89,8 +89,36 @@ export function activeDocument(state) {
   return state.documents.find(d => d.id === state.activeId) || state.documents[0];
 }
 
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function ensureUniqueTitle(state, baseTitle, currentDocId = null) {
+  const allTitles = state.documents
+    .filter(d => d.id !== currentDocId)
+    .map(d => d.title);
+  
+  if (!allTitles.includes(baseTitle)) return baseTitle;
+
+  let maxSuffix = 0;
+  const regex = new RegExp(`^${escapeRegExp(baseTitle)} \\((\\d+)\\)$`);
+  for (const title of allTitles) {
+    if (title === baseTitle && maxSuffix === 0) {
+      maxSuffix = 0; // base title exists
+    }
+    const match = title.match(regex);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxSuffix) maxSuffix = num;
+    }
+  }
+  
+  return `${baseTitle} (${maxSuffix + 1})`;
+}
+
 export function createDocument(state, title = "Untitled Notes") {
-  const doc = normalizeDoc({ id: uid(), title, source: "<p></p>", result: "<p></p>", single: "<p></p>" });
+  const uniqueTitle = ensureUniqueTitle(state, title);
+  const doc = normalizeDoc({ id: uid(), title: uniqueTitle, source: "<p></p>", result: "<p></p>", single: "<p></p>" });
   state.documents.unshift(doc);
   state.activeId = doc.id;
   saveWorkspace(state);

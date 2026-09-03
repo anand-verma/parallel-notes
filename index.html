@@ -26,6 +26,7 @@
   <div id="app" class="app-shell">
 
     <main class="workspace">
+      <div id="sidebarOverlay" class="sidebar-overlay"></div>
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
           <div class="brand">
@@ -49,15 +50,24 @@
           <div class="sidebar-utils">
             <span class="save-state" id="saveState">Saved</span>
             <div class="sidebar-utils-actions">
-              <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+              <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+              </button>
               <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
               </button>
             </div>
           </div>
-          <div style="text-align: center; color: var(--muted-2); font-size: 11px; padding: 8px 12px;">
+          <div style="text-align: center; color: var(--muted-2); font-size: 11px; padding: 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
             <div>Built with <span aria-hidden="true">❤️</span> by <a class="creator-link" href="https://anand-verma.github.io/" target="_blank" rel="noopener noreferrer">Anand</a></div>
-            <a class="feedback-link" href="https://docs.google.com/forms/d/e/1FAIpQLScfw6Ex_n5BXu-yqykG25pDaENT91RoOCzTO32eJvDEzj7JRA/viewform" target="_blank" rel="noopener noreferrer">Feedback</a>
+            <div style="display: flex; gap: 14px; align-items: center; justify-content: center; color: var(--muted);">
+              <a class="feedback-link" href="https://github.com/anand-verma/parallel-notes.git" target="_blank" rel="noopener noreferrer" title="GitHub" style="display: flex; color: inherit;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.02c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+              </a>
+              <a class="feedback-link" href="https://forms.gle/KBfRV8CmnauYuQvG8" target="_blank" rel="noopener noreferrer" title="Feedback / Mail" style="display: flex; color: inherit;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+              </a>
+            </div>
           </div>
         </div>
       </aside>
@@ -65,7 +75,9 @@
       <section class="main-area">
         <div class="ai-toolbar" style="flex-wrap: wrap; padding: 8px 16px;">
           <div class="ai-left">
-            <button class="icon-btn sidebar-toggle-btn" id="sidebarToggleBtn" title="Collapse sidebar" aria-label="Collapse sidebar">◂</button>
+            <button class="icon-btn sidebar-toggle-btn" id="sidebarToggleBtn" title="Collapse sidebar" aria-label="Collapse sidebar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><path d="m14 15-3-3 3-3"></path></svg>
+            </button>
             <div class="ai-chip"><span class="status-dot" id="aiDot"></span><span id="aiStatus">AI not loaded</span></div>
             <div class="model-picker" id="modelPicker">
               <button class="model-picker-trigger" id="modelPickerBtn" type="button">
@@ -108,12 +120,19 @@
             <div class="pane-head">
               <div>
                 <span class="pane-kicker">SOURCE</span>
-                <span class="pane-title">Parent Notes</span>
               </div>
+              <input type="text" id="sourceDocName" class="pane-doc-name-input" placeholder="Document Name" spellcheck="false" autocomplete="off">
               <div class="pane-actions">
-                <button class="mini-btn" id="maxSourceBtn" title="Maximize pane">⤢</button>
-                <button class="mini-btn" data-action="copy-source" title="Copy notes">⧉</button>
-                <button class="mini-btn" data-action="export-source" title="Export notes">⤓</button>
+                <button class="mini-btn max-btn" id="maxSourceBtn" title="Maximize pane">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-max"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-min" style="display:none;"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>
+                </button>
+                <button class="mini-btn" data-action="copy-source" title="Copy notes">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+                <button class="mini-btn" data-action="export-source" title="Export notes">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </button>
               </div>
             </div>
             <div class="editor-wrap">
@@ -131,12 +150,19 @@
             <div class="pane-head">
               <div>
                 <span class="pane-kicker result-kicker">RESULT</span>
-                <span class="pane-title">Working Draft</span>
               </div>
+              <span class="pane-doc-name-display" id="resultDocName">Draft - Document Name</span>
               <div class="pane-actions">
-                <button class="mini-btn" id="maxResultBtn" title="Maximize pane">⤢</button>
-                <button class="mini-btn" data-action="copy-result" title="Copy draft">⧉</button>
-                <button class="mini-btn" data-action="export-result" title="Export draft">⤓</button>
+                <button class="mini-btn max-btn" id="maxResultBtn" title="Maximize pane">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-max"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon-min" style="display:none;"><path d="M8 3v3a2 2 0 0 1-2 2H3"></path><path d="M21 8h-3a2 2 0 0 1-2-2V3"></path><path d="M3 16h3a2 2 0 0 1 2 2v3"></path><path d="M16 21v-3a2 2 0 0 1 2-2h3"></path></svg>
+                </button>
+                <button class="mini-btn" data-action="copy-result" title="Copy draft">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+                <button class="mini-btn" data-action="export-result" title="Export draft">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </button>
               </div>
             </div>
             <div class="editor-wrap">
@@ -311,6 +337,23 @@
 
           </div>
 
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="instructionDialog" class="modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div>
+            <div class="eyebrow" id="instructionEyebrow">Action Required</div>
+            <h2 id="instructionTitle">Action Required</h2>
+          </div>
+          <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+        </div>
+        <p class="modal-copy" id="instructionMessage" style="margin-bottom: 20px;">Please follow the instructions below.</p>
+        <div id="instructionLinks" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; padding: 0 16px;"></div>
+        <div class="modal-actions">
+          <button class="primary-btn" value="default">Got it</button>
         </div>
       </form>
     </dialog>

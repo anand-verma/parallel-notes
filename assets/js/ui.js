@@ -1,5 +1,5 @@
 /** Core AppUI class handling layout, pane management, and interactions. */
-import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage } from "./state.js";
+import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, ensureUniqueTitle } from "./state.js";
 import { createEditor, editorText, wordCount } from "./editor.js";
 import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
@@ -59,6 +59,26 @@ export class AppUI {
     $("#sidebarNewBtn").onclick = () => this.newDoc();
     $("#themeBtn").onclick = () => this.toggleTheme();
     $("#settingsBtn").onclick = () => this.settingsUI.open();
+    
+    // Laptop collapsed sidebar click-to-expand
+    this.sidebar.addEventListener("click", (e) => {
+      // If collapsed and we clicked the empty space of the sidebar (not a button)
+      if (this.sidebar.classList.contains("collapsed") && window.innerWidth > 700) {
+        if (!e.target.closest("button") && !e.target.closest("a")) {
+          this.toggleSidebar();
+        }
+      }
+    });
+
+    // Mobile sidebar overlay click-to-collapse
+    const overlay = document.querySelector("#sidebarOverlay");
+    if (overlay) {
+      overlay.addEventListener("click", () => {
+        if (window.innerWidth <= 700 && !this.sidebar.classList.contains("collapsed")) {
+          this.toggleSidebar();
+        }
+      });
+    }
     $("#settingsForm").onsubmit = e => {
       e.preventDefault();
       try {
@@ -94,6 +114,38 @@ export class AppUI {
     this.modelDialog.addEventListener("close", () => { if (this.modelDialog.returnValue !== "load") this.resolveModelLoad(false); });
     $("#summarizeBtn").onclick = () => this.ai.busy ? this.stopGeneration() : this.summarize();
     document.querySelectorAll("[data-action]").forEach(btn => btn.onclick = () => this.action(btn.dataset.action));
+    
+    // Document rename from pane
+    const sourceNameInput = $("#sourceDocName");
+    if (sourceNameInput) {
+      const handleRename = () => {
+        let newTitle = sourceNameInput.value.trim();
+        const doc = activeDocument(this.state);
+        
+        if (newTitle) {
+          if (newTitle !== doc.title) {
+            newTitle = ensureUniqueTitle(this.state, newTitle, doc.id);
+            doc.title = newTitle;
+            doc.updatedAt = Date.now();
+            saveState(this.state);
+            this.renderDocs();
+          }
+          sourceNameInput.value = newTitle;
+          const resultSpan = document.querySelector("#resultDocName");
+          if (resultSpan) resultSpan.textContent = `Draft - ${newTitle}`;
+        } else {
+          sourceNameInput.value = doc.title; // Revert if empty
+        }
+      };
+      sourceNameInput.addEventListener("blur", handleRename);
+      sourceNameInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sourceNameInput.blur();
+        }
+      });
+    }
+
     this.setupSplitter();
     // Close any open doc menu when clicking outside
     document.addEventListener("click", e => {
@@ -236,6 +288,13 @@ export class AppUI {
   /* ── Editor ──────────────────────────────────── */
   loadActiveDocument() {
     const doc = activeDocument(this.state);
+    
+    // Update pane titles
+    const sourceInput = document.querySelector("#sourceDocName");
+    const resultSpan = document.querySelector("#resultDocName");
+    if (sourceInput) sourceInput.value = doc.title || "Document Name";
+    if (resultSpan) resultSpan.textContent = `Draft - ${doc.title || "Document Name"}`;
+
     for (const key of ["source", "result"]) {
       const host = document.querySelector(`#${key}Editor`); this.editors[key]?.destroy(); host.innerHTML = "";
       this.editors[key] = createEditor(host, doc[key], () => this.onEditorUpdate(key));
@@ -313,7 +372,33 @@ export class AppUI {
     } catch (err) {
       const isCancelled = err?.name === "AbortError";
       document.querySelector("#generationMeta").textContent = isCancelled ? "Cancelled" : "Generation failed";
-      if (!isCancelled) this.toast(err.message || "Generation failed.", "error");
+      
+      const msg = err.message || "";
+      if (!isCancelled) {
+        if (msg.includes("Download this model first")) {
+          this.showInstruction(
+            "Model Not Downloaded",
+            "This local AI model needs to be downloaded before it can be used. This usually only takes a few minutes.",
+            [
+              { text: "Download from Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
+            ]
+          );
+        } else if (msg.includes("API key is missing") || msg.includes("Gemini API key is missing")) {
+          const isGemini = msg.includes("Gemini");
+          const links = [
+            { text: "Add API key in Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
+          ];
+          if (isGemini) {
+            links.push({ text: "Get Gemini API Key", href: "https://aistudio.google.com/app/apikey" });
+          } else {
+            links.push({ text: "Get OpenAI API Key", href: "https://platform.openai.com/api-keys" });
+          }
+          this.showInstruction("API Key Required", "You must configure an API key to use this cloud model.", links);
+        } else {
+          this.toast(msg || "Generation failed.", "error");
+        }
+      }
+      
       // Save any partial content that was streamed before the error
       this.onEditorUpdate("result");
     } finally {
@@ -445,13 +530,23 @@ export class AppUI {
   }
 
   renameDoc(doc) {
-    const newTitle = prompt("Rename document:", doc.title);
+    let newTitle = prompt("Rename document:", doc.title);
     if (newTitle === null || !newTitle.trim()) return;
+    newTitle = newTitle.trim();
+    if (newTitle === doc.title) return;
+    
     try {
-      doc.title = newTitle.trim();
+      newTitle = ensureUniqueTitle(this.state, newTitle, doc.id);
+      doc.title = newTitle;
       doc.updatedAt = Date.now();
       saveState(this.state);
       this.renderDocs();
+      if (activeDocument(this.state).id === doc.id) {
+        const sourceInput = document.querySelector("#sourceDocName");
+        const resultSpan = document.querySelector("#resultDocName");
+        if (sourceInput) sourceInput.value = newTitle;
+        if (resultSpan) resultSpan.textContent = `Draft - ${newTitle}`;
+      }
       this.toast("Document renamed.", "success");
     } catch (err) {
       this.toast(err.message || "Could not save renamed document.", "error");
@@ -475,15 +570,22 @@ export class AppUI {
     const isCollapsed = this.sidebar.classList.toggle("collapsed");
     const btn = document.querySelector("#sidebarToggleBtn");
     if (btn) {
-      btn.textContent = isCollapsed ? "▸" : "◂";
+      btn.classList.toggle("collapsed", isCollapsed);
       btn.title = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
       btn.setAttribute("aria-label", btn.title);
     }
+    const overlay = document.querySelector("#sidebarOverlay");
+    if (overlay) overlay.classList.toggle("active", !isCollapsed);
   }
   toggleMaximizePane(paneId, btnEl) {
-    if (this.maximizedPane === paneId) { this.maximizedPane = null; document.querySelector("#sourcePane").classList.remove("hidden"); document.querySelector("#resultPane").classList.remove("hidden"); document.querySelector("#splitter").classList.remove("hidden"); this.applyPaneRatio(); btnEl.textContent = "⤢"; btnEl.title = "Maximize pane"; return; }
+    const updateIcon = (btn, isMax) => {
+      const imax = btn.querySelector('.icon-max'), imin = btn.querySelector('.icon-min');
+      if (imax) imax.style.display = isMax ? 'none' : 'block';
+      if (imin) imin.style.display = isMax ? 'block' : 'none';
+    };
+    if (this.maximizedPane === paneId) { this.maximizedPane = null; document.querySelector("#sourcePane").classList.remove("hidden"); document.querySelector("#resultPane").classList.remove("hidden"); document.querySelector("#splitter").classList.remove("hidden"); this.applyPaneRatio(); updateIcon(btnEl, false); btnEl.title = "Maximize pane"; return; }
     this.maximizedPane = paneId; document.querySelector("#sourcePane").classList.toggle("hidden", paneId !== "sourcePane"); document.querySelector("#resultPane").classList.toggle("hidden", paneId !== "resultPane"); document.querySelector("#splitter").classList.add("hidden"); this.applyPaneRatio();
-    const other = paneId === "sourcePane" ? document.querySelector("#maxResultBtn") : document.querySelector("#maxSourceBtn"); other.textContent = "⤢"; other.title = "Maximize pane"; btnEl.textContent = "◫"; btnEl.title = "Restore split view";
+    const other = paneId === "sourcePane" ? document.querySelector("#maxResultBtn") : document.querySelector("#maxSourceBtn"); if (other) { updateIcon(other, false); other.title = "Maximize pane"; } updateIcon(btnEl, true); btnEl.title = "Restore split view";
   }
   applyPaneRatio() {
     const r = this.state.paneRatio || 50;
@@ -529,5 +631,37 @@ export class AppUI {
   }
   toggleTheme() { const root = document.documentElement; const next = root.dataset.theme === "dark" ? "light" : "dark"; root.dataset.theme = next; localStorage.setItem("pns.theme", next); }
   restoreTheme() { const saved = localStorage.getItem("pns.theme"); if (saved) document.documentElement.dataset.theme = saved; }
+  showInstruction(title, message, links = []) {
+    const dialog = document.querySelector("#instructionDialog");
+    if (!dialog) return;
+    document.querySelector("#instructionTitle").textContent = title;
+    document.querySelector("#instructionMessage").textContent = message;
+    
+    const linksContainer = document.querySelector("#instructionLinks");
+    linksContainer.innerHTML = "";
+    links.forEach(link => {
+      if (link.href) {
+        const a = document.createElement("a");
+        a.href = link.href;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.className = "secondary-btn";
+        a.style.display = "block";
+        a.style.textAlign = "center";
+        a.textContent = link.text;
+        linksContainer.appendChild(a);
+      } else if (link.action) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "secondary-btn";
+        btn.style.width = "100%";
+        btn.textContent = link.text;
+        btn.onclick = link.action;
+        linksContainer.appendChild(btn);
+      }
+    });
+    
+    dialog.showModal();
+  }
   toast(message, type = "") { const el = document.createElement("div"); el.className = `toast ${type}`; el.textContent = message; this.toastRegion.appendChild(el); setTimeout(() => el.remove(), 4200); }
 }
