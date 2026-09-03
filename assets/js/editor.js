@@ -7,6 +7,8 @@ import { Table } from "https://esm.sh/@tiptap/extension-table@3.29.2";
 import { TableRow } from "https://esm.sh/@tiptap/extension-table-row@3.29.2";
 import { TableHeader } from "https://esm.sh/@tiptap/extension-table-header@3.29.2";
 import { TableCell } from "https://esm.sh/@tiptap/extension-table-cell@3.29.2";
+import { TaskList } from "https://esm.sh/@tiptap/extension-task-list@3.29.2";
+import { TaskItem } from "https://esm.sh/@tiptap/extension-task-item@3.29.2";
 import { Extension } from "https://esm.sh/@tiptap/core@3.29.2";
 import katex from "https://esm.sh/katex@0.16.11";
 
@@ -136,6 +138,8 @@ const extensions = [
   Underline,
   Indent,
   Link.configure({openOnClick:false,autolink:true,defaultProtocol:"https"}),
+  TaskList,
+  TaskItem.configure({nested:true}),
   TextAlign.configure({types:["heading","paragraph"]}),
   Table.configure({resizable:true}),
   TableRow, TableHeader, TableCell
@@ -146,18 +150,23 @@ const TOOLBAR_ITEMS = [
   { cmd:"bold",         icon:"B",   title:"Bold (Ctrl+B)",           style:"font-weight:800" },
   { cmd:"italic",       icon:"I",   title:"Italic (Ctrl+I)",         style:"font-style:italic" },
   { cmd:"underline",    icon:"U",   title:"Underline (Ctrl+U)",      style:"text-decoration:underline" },
-  { cmd:"strike",       icon:"S",   title:"Strikethrough",           style:"text-decoration:line-through" },
+  { cmd:"strike",       icon:"S",   title:"Strikethrough (Ctrl+-)",  style:"text-decoration:line-through" },
   "sep",
-  { cmd:"heading1",     icon:"H1",  title:"Heading 1" },
-  { cmd:"heading2",     icon:"H2",  title:"Heading 2" },
-  { cmd:"heading3",     icon:"H3",  title:"Heading 3" },
+  { type: "dropdown", icon: "H", title: "Headings (Ctrl+Alt+1-3)", items: [
+      { cmd: "heading1", label: "Heading 1" },
+      { cmd: "heading2", label: "Heading 2" },
+      { cmd: "heading3", label: "Heading 3" }
+  ]},
   "sep",
   { cmd:"bulletList",   icon:"•≡",  title:"Bullet list (Ctrl+.)" },
   { cmd:"orderedList",  icon:"1≡",  title:"Numbered list (Ctrl+/)" },
+  { cmd:"taskList",     icon:"☑",   title:"Task list (Ctrl+1)" },
+  { cmd:"indent",       icon:"⇥",   title:"Indent (Tab)" },
+  { cmd:"outdent",      icon:"⇤",   title:"Outdent (Shift+Tab)" },
+  "sep",
   { cmd:"blockquote",   icon:"❝",   title:"Blockquote" },
   { cmd:"code",         icon:"<>",  title:"Inline code" },
   { cmd:"codeBlock",    icon:"{ }", title:"Code block" },
-  "sep",
   { type: "dropdown", icon: "▦", title: "Table Tools", items: [
       { cmd: "tableInsert", label: "Insert Table" },
       { cmd: "tableAddRow", label: "Add Row" },
@@ -166,12 +175,8 @@ const TOOLBAR_ITEMS = [
       { cmd: "tableDeleteCol", label: "Delete Column" },
       { cmd: "tableDelete", label: "Delete Table" }
   ]},
-  "sep",
-  { cmd:"indent",       icon:"⇥",   title:"Indent (Tab)" },
-  { cmd:"outdent",      icon:"⇤",   title:"Outdent (Shift+Tab)" },
-  "sep",
   { cmd:"horizontalRule", icon:"─", title:"Horizontal rule" },
-  { cmd:"link",         icon:"🔗",  title:"Insert / remove link" },
+  { cmd:"link",         icon:"🔗",  title:"Insert link (Ctrl+K)" },
   "sep",
   { cmd:"undo",         icon:"↩",   title:"Undo (Ctrl+Z)" },
   { cmd:"redo",         icon:"↪",   title:"Redo (Ctrl+Y)" }
@@ -248,6 +253,7 @@ function execToolbarCmd(editor, cmd){
     case "heading3":       chain.toggleHeading({level:3}).run(); break;
     case "bulletList":     chain.toggleBulletList().run(); break;
     case "orderedList":    chain.toggleOrderedList().run(); break;
+    case "taskList":       chain.toggleTaskList().run(); break;
     case "blockquote":     chain.toggleBlockquote().run(); break;
     case "code":           chain.toggleCode().run(); break;
     case "codeBlock":      chain.toggleCodeBlock().run(); break;
@@ -290,6 +296,7 @@ function updateToolbarState(bar, editor){
       case "heading3":    active = editor.isActive("heading",{level:3}); break;
       case "bulletList":  active = editor.isActive("bulletList"); break;
       case "orderedList": active = editor.isActive("orderedList"); break;
+      case "taskList":    active = editor.isActive("taskList"); break;
       case "blockquote":  active = editor.isActive("blockquote"); break;
       case "code":        active = editor.isActive("code"); break;
       case "codeBlock":   active = editor.isActive("codeBlock"); break;
@@ -314,6 +321,14 @@ export function createEditor(element, content, onUpdate){
           }
           if (event.key === "/") {
             editor.chain().focus().toggleOrderedList().run();
+            event.preventDefault(); return true;
+          }
+          if (event.key === "-") {
+            editor.chain().focus().toggleStrike().run();
+            event.preventDefault(); return true;
+          }
+          if (event.key === "1" && !event.altKey) {
+            editor.chain().focus().toggleTaskList().run();
             event.preventDefault(); return true;
           }
         }

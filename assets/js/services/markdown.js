@@ -11,10 +11,25 @@ export async function markdownToHtml(markdown) {
   const [{ marked }, { default: DOMPurify }, { default: markedKatex }] = await loadParser();
   marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
   
-  // Pre-process AI-style LaTeX delimiters ( \[ \] and \( \) ) into Marked-compatible delimiters ( $$ and $ )
-  const processed = markdown
-    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
-    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+  let processed = markdown.trim();
+
+  // 1. Unwrap global markdown code blocks (e.g. if the LLM wrapped the entire response in ```markdown ... ```)
+  const codeBlockRegex = /^\s*```(?:markdown|html)?\s*\n([\s\S]*?)```\s*$/i;
+  if (codeBlockRegex.test(processed)) {
+    processed = processed.replace(codeBlockRegex, '$1').trim();
+  }
+
+  // 2. Parse <think> tags (from reasoning models) into blockquotes so they aren't stripped by DOMPurify
+  processed = processed.replace(/<think>([\s\S]*?)<\/think>/gi, (match, thoughts) => {
+    const quoted = thoughts.trim().split('\n').map(line => `> ${line}`).join('\n');
+    return `> **Thought Process:**\n${quoted}\n\n`;
+  });
+
+  // 3. Pre-process AI-style LaTeX delimiters. 
+  // We match either a single backslash ( \[ ) or double backslashes ( \\[ ) common in JSON API payloads.
+  processed = processed
+    .replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, '$$$$$1$$$$')
+    .replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, '$$$1$$');
 
   let html = marked.parse(processed, { gfm: true, breaks: false });
   
