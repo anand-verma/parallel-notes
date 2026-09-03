@@ -281,3 +281,161 @@ button{cursor:pointer}
 .sidebar-head{gap:8px}
 .sidebar-head .brand{min-width:0;flex:1;overflow:hidden}
 .sidebar.collapsed .sidebar-head .brand{display:none}
+
+/* ── v0.5.0 Model Picker ────────────────────────── */
+.model-picker{position:relative;display:inline-flex;align-items:center}
+.model-picker-trigger{
+  display:flex;align-items:center;gap:5px;padding:6px 10px;
+  border:1px solid var(--border);border-radius:8px;background:var(--surface-2);
+  color:var(--text);font-size:10px;cursor:pointer;transition:.14s ease;
+  white-space:nowrap;max-width:240px;
+}
+.model-picker-trigger:hover{border-color:var(--border-strong);background:var(--surface-3)}
+.model-picker-trigger.open{border-color:var(--accent);box-shadow:0 0 0 2px rgba(91,91,214,.12)}
+.picker-provider{font-weight:800;color:var(--accent);flex-shrink:0}
+.picker-divider{color:var(--muted-2)}
+.picker-model{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picker-caret{color:var(--muted-2);font-size:8px;margin-left:2px;flex-shrink:0}
+
+.model-picker-menu{
+  display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:50;
+  min-width:300px;max-width:380px;max-height:380px;overflow-y:auto;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 16px 48px rgba(0,0,0,.18);padding:6px;
+}
+.model-picker-menu.open{display:block}
+.model-group{margin-bottom:2px}
+.model-group-header{
+  font-size:9px;font-weight:850;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--muted-2);padding:8px 10px 4px;display:flex;align-items:center;gap:6px;
+}
+.model-group-header::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--accent);flex-shrink:0}
+.model-divider{height:1px;background:var(--border);margin:4px 8px}
+.model-option{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 10px;border-radius:8px;cursor:pointer;transition:.12s ease;
+  border:1px solid transparent;
+}
+.model-option:hover{background:var(--surface-2);border-color:var(--border)}
+.model-option.selected{background:var(--accent-soft);border-color:rgba(91,91,214,.18)}
+.model-option-info{display:flex;align-items:center;gap:7px;min-width:0;flex:1}
+.model-option-bullet{width:6px;height:6px;border-radius:50%;background:transparent;flex-shrink:0}
+.model-option.selected .model-option-bullet{background:var(--accent)}
+.model-option-name{font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.model-option-right{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.model-badge{font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.model-badge.cached{color:var(--success);background:rgba(46,155,103,.1)}
+.model-badge.ready{color:var(--success);background:rgba(46,155,103,.1)}
+.model-badge.needs-key{color:var(--muted);background:var(--surface-3)}
+.model-badge.needs-download{color:var(--muted-2);background:var(--surface-3)}
+.model-option-download{
+  width:22px;height:22px;border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);color:var(--accent);display:grid;place-items:center;
+  font-size:11px;cursor:pointer;transition:.14s ease;flex-shrink:0;padding:0;
+}
+.model-option-download:hover{background:var(--accent-soft);border-color:var(--accent)}
+
+/* ── v0.5.0 Settings Tabs ───────────────────────── */
+.settings-tabs{
+  display:flex;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);
+  background:var(--surface-2);
+}
+.settings-tabs-list{display:flex;gap:2px}
+.settings-tab{
+  padding:10px 16px;border:none;background:transparent;color:var(--muted);
+  font-size:11px;font-weight:700;cursor:pointer;position:relative;
+  border-bottom:2px solid transparent;transition:.14s ease;
+}
+.settings-tab:hover{color:var(--text)}
+.settings-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.settings-panels{padding:20px;max-height:min(60vh,520px);overflow-y:auto}
+.settings-panel{display:none}
+.settings-panel.active{display:block}
+
+/* ── v0.5.0 Settings Sections ───────────────────── */
+.settings-section{margin-bottom:20px}
+.settings-section-header{
+  font-size:11px;font-weight:800;color:var(--text);
+  padding-bottom:8px;margin-bottom:12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:7px;
+}
+.settings-section-header::before{content:"";width:3px;height:14px;border-radius:2px;background:var(--accent);flex-shrink:0}
+
+/* ── v0.5.0 Model Cards ─────────────────────────── */
+.model-card{
+  border:1px solid var(--border);border-radius:10px;padding:10px 12px;
+  background:var(--surface-2);margin-bottom:8px;
+}
+.model-card-name{font-size:11px;font-weight:750;display:flex;align-items:center;gap:6px}
+.model-card-specs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.model-spec{
+  font-size:9px;color:var(--muted);padding:2px 7px;
+  border:1px solid var(--border);border-radius:5px;background:var(--surface);
+}
+.model-card-status{font-size:10px;margin-top:6px;display:flex;align-items:center;gap:5px}
+.model-card-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
+.model-card-actions button{font-size:10px;padding:5px 10px}
+.default-badge{
+  font-size:8px;font-weight:800;padding:2px 7px;border-radius:4px;
+  background:var(--accent-soft);color:var(--accent);letter-spacing:.04em;
+}
+
+/* ── v0.5.0 Add Model Form ──────────────────────── */
+.add-model-section{margin-top:8px}
+.add-model-toggle{
+  font-size:10px;font-weight:700;color:var(--accent);background:transparent;
+  border:1px dashed var(--border);border-radius:8px;padding:7px 12px;
+  width:100%;cursor:pointer;transition:.14s ease;
+}
+.add-model-toggle:hover{border-color:var(--accent);background:var(--accent-soft)}
+.add-model-form{
+  margin-top:8px;padding:10px;border:1px solid var(--border);
+  border-radius:8px;background:var(--surface);
+  display:none;flex-direction:column;gap:8px;
+}
+.add-model-form.open{display:flex}
+.add-model-form .form-input{
+  width:100%;border:1px solid var(--border);background:var(--surface-2);
+  color:var(--text);border-radius:7px;padding:7px 10px;outline:0;font-size:11px;
+}
+.add-model-form .form-input:focus{border-color:var(--accent)}
+.add-model-validation{font-size:10px;color:var(--muted);line-height:1.5}
+.add-model-validation.valid{color:var(--success)}
+.add-model-validation.invalid{color:var(--danger)}
+
+/* ── v0.5.0 API Model Row ───────────────────────── */
+.api-model-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 10px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface-2);margin-bottom:6px;font-size:11px;
+}
+.api-model-row-name{font-weight:600;display:flex;align-items:center;gap:6px}
+.api-model-row button.remove-btn{
+  width:22px;height:22px;border:1px solid var(--border);border-radius:6px;
+  background:var(--surface);color:var(--danger);display:grid;place-items:center;
+  font-size:11px;cursor:pointer;transition:.14s ease;padding:0;
+}
+.api-model-row button.remove-btn:hover{background:rgba(212,90,90,.08);border-color:rgba(212,90,90,.3)}
+
+/* ── v0.5.0 Master Reset ────────────────────────── */
+.master-reset{
+  margin-top:16px;padding:14px;border:1px solid rgba(212,90,90,.25);
+  border-radius:10px;background:rgba(212,90,90,.03);
+}
+.master-reset-label{font-size:11px;font-weight:800;color:var(--danger);margin-bottom:4px}
+.master-reset-note{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.master-reset-btn{
+  width:100%;padding:9px;border:1px solid rgba(212,90,90,.35);border-radius:8px;
+  background:rgba(212,90,90,.06);color:var(--danger);font-weight:800;font-size:11px;
+  cursor:pointer;transition:.14s ease;
+}
+.master-reset-btn:hover{background:rgba(212,90,90,.12);border-color:rgba(212,90,90,.5)}
+
+/* ── v0.5.0 Form input (settings) ───────────────── */
+.modal .form-input{
+  width:100%;border:1px solid var(--border);background:var(--surface-2);
+  color:var(--text);border-radius:8px;padding:8px 10px;outline:0;font-size:11px;
+}
+.modal .form-input:focus{border-color:var(--accent)}
+.modal-field label{font-size:11px;font-weight:700;color:var(--text);display:block;margin-bottom:5px}
+

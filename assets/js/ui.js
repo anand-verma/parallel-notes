@@ -8,6 +8,7 @@ import { exportHtmlDocument } from "./services/export.js";
 import { getCredential, setCredential } from "./storage/credentials.js";
 import { clearAllModelCaches } from "./ai/providers/webllm.js";
 import { SettingsUI } from "./ui/settings-ui.js";
+import { renderModelPickerMenu, updatePickerTrigger, renderCacheList } from "./ui/ai-ui.js";
 
 export class AppUI {
   constructor(state) {
@@ -54,19 +55,27 @@ export class AppUI {
         $("#settingsDialog").close();
         this.toast("Settings saved", "success");
         this.ai.updateSettings(this.settings);
-        this.populateModels(this.ai.models, this.ai.selectedModel);
+        this.ai.rebuildRegistry();
+        void this.ai.refreshCacheStatus();
       } catch (error) {
         this.toast(error.message || "Settings could not be saved.", "error");
       }
     };
     $("#addCustomModelBtn").onclick = () => this.settingsUI.addCustomModel();
     $("#clearCacheBtn").onclick = () => this.clearLocalModels();
-    $("#clearWorkspaceBtn").onclick = () => this.settingsUI.clearWorkspace();
-    $("#sidebarToggleBtn").onclick = $("#collapseSidebarBtn").onclick = () => this.toggleSidebar();
+    $("#clearWorkspaceBtn")?.addEventListener("click", () => this.settingsUI.clearWorkspace());
+    $("#sidebarToggleBtn").onclick = () => this.toggleSidebar();
     $("#maxSourceBtn").onclick = e => this.toggleMaximizePane("sourcePane", e.currentTarget);
     $("#maxResultBtn").onclick = e => this.toggleMaximizePane("resultPane", e.currentTarget);
     $("#modeSelect").onchange = e => { this.state.mode = e.target.value; saveState(this.state); this.updateCustomPreview(); };
-    $("#modelSelect").onchange = e => this.ai.setModel(e.target.value);
+
+    // Model picker toggle
+    $("#modelPickerBtn").onclick = () => this.toggleModelPicker();
+    // Close picker on outside click
+    document.addEventListener("click", e => {
+      if (!e.target.closest("#modelPicker")) this.closeModelPicker();
+    });
+
     $("#customPromptBtn").onclick = () => this.openCustomDialog();
     $("#editCustomBtn").onclick = () => this.openCustomDialog();
     $("#customForm").onsubmit = e => { e.preventDefault(); this.state.customInstruction = this.customInstruction.value.trim(); saveState(this.state); this.updateCustomPreview(); this.customDialog.close(); this.toast("Custom instruction applied.", "success"); };
@@ -100,6 +109,42 @@ export class AppUI {
   }
   persistSettings() { this.settings = saveSettings(this.settings); this.settingsUI.updateSettings(this.settings); this.ai.updateSettings(this.settings); }
 
+  /* ── Model Picker ────────────────────────────── */
+  renderModelPicker(models, selectedId) {
+    const menu = document.querySelector("#modelPickerMenu");
+    const credentialReady = (provider, model) => !!this.getCredential(provider, model);
+    renderModelPickerMenu(menu, models, selectedId, {
+      onSelect: id => {
+        this.ai.setModel(id);
+        this.renderModelPicker(models, id);
+        this.closeModelPicker();
+      },
+      onDownload: id => {
+        this.closeModelPicker();
+        this.ai.downloadModel(id).then(() => {
+          this.toast("Model downloaded.", "success");
+        }).catch(err => {
+          this.toast(err.message || "Download failed.", "error");
+        });
+      },
+      credentialReady
+    });
+    updatePickerTrigger(models, selectedId);
+  }
+
+  toggleModelPicker() {
+    const menu = document.querySelector("#modelPickerMenu");
+    const btn = document.querySelector("#modelPickerBtn");
+    const isOpen = menu.classList.toggle("open");
+    btn.classList.toggle("open", isOpen);
+  }
+
+  closeModelPicker() {
+    document.querySelector("#modelPickerMenu")?.classList.remove("open");
+    document.querySelector("#modelPickerBtn")?.classList.remove("open");
+  }
+
+  /* ── Local model cache ───────────────────────── */
   async clearLocalModels() {
     if (!confirm("Delete all downloaded local model files? They will need to be downloaded again.")) return;
     try {
@@ -110,7 +155,7 @@ export class AppUI {
       }
       const count = await clearAllModelCaches(this.ai.models.filter(m => m.type === "local").map(m => m.id));
       await this.ai.refreshCacheStatus();
-      this.settingsUI.open();
+      renderCacheList(document.querySelector("#localModelCacheList"), this.ai.models.filter(m => m.type === "local"));
       this.toast(count ? `${count} local model cache(s) deleted.` : "No cached local models found.", "success");
     } catch (err) {
       this.toast(err.message || "Failed to clear local model cache.", "error");
@@ -130,26 +175,12 @@ export class AppUI {
     document.querySelector("#saveState").textContent = "Workspace cleared";
   }
 
-  populateModels(models, selected) {
-    const select = document.querySelector("#modelSelect");
-    const credentialReady = (provider, model) => !!this.getCredential(provider, model);
-    select.replaceChildren();
-    [...models].sort((a,b) => (a.vram || 999999) - (b.vram || 999999)).forEach(m => {
-      const option = document.createElement("option"); option.value = m.id;
-      const ready = m.type === "local" ? !!m.isCached : credentialReady(m.provider, m);
-      option.textContent = `${m.label || m.id} [${m.type === "local" ? "Local" : "API"}] — ${m.type === "local" ? (ready ? "Cached" : "Needs Download") : (ready ? "Ready" : "Needs Key")}`;
-      select.appendChild(option);
-    });
-    select.disabled = !models.length;
-    select.value = selected;
-  }
-
+  /* ── AI status ───────────────────────────────── */
   async initAI() { try { await this.ai.init(); } catch (err) { this.setAIStatus("AI unavailable", "error"); this.toast(err.message, "error"); } }
   setAIStatus(text, type = "") { document.querySelector("#aiStatus").textContent = text; document.querySelector("#aiDot").className = `status-dot ${type}`; }
   disableAI(disabled) {
     const btn = document.querySelector("#summarizeBtn");
     btn.disabled = disabled;
-    document.querySelector("#modelSelect").disabled = disabled;
   }
   setGeneratingUI(active) {
     const btn = document.querySelector("#summarizeBtn");
@@ -184,6 +215,7 @@ export class AppUI {
     if (text) label.textContent = text;
   }
 
+  /* ── Editor ──────────────────────────────────── */
   loadActiveDocument() {
     const doc = activeDocument(this.state);
     for (const key of ["source", "result"]) {
@@ -212,6 +244,7 @@ export class AppUI {
     }
   }
 
+  /* ── Summarize ───────────────────────────────── */
   async summarize() {
     if (this.ai.busy) return;
     const sourcePackage = createSourcePackage(this.editors.source);
@@ -266,6 +299,7 @@ export class AppUI {
     }
   }
 
+  /* ── Progressive result streaming ────────────── */
   startProgressiveResult() {
     this.progressRenderToken += 1;
     this.progressRenderInFlight = false;
@@ -323,6 +357,7 @@ export class AppUI {
     this.progressText = "";
   }
 
+  /* ── Actions ─────────────────────────────────── */
   action(action) { if (action === "copy-source") this.copyEditor(this.editors.source); if (action === "copy-result") this.copyEditor(this.editors.result); if (action === "export-source") this.exportDoc("source"); if (action === "export-result") this.exportDoc("result"); }
   async copyEditor(editor) { try { const type = await copyRichText(editor); this.toast(type === "rich" ? "Copied rich text to clipboard" : "Copied plain text", "success"); } catch (err) { this.toast(err.message, "error"); } }
   exportDoc(paneId) { try { const doc = activeDocument(this.state); exportHtmlDocument({ title: doc.title, content: paneId === "source" ? doc.source : doc.result, suffix: paneId === "source" ? "Notes" : "Draft" }); this.toast("Document exported successfully.", "success"); } catch (err) { this.toast(err.message, "error"); } }
@@ -330,6 +365,7 @@ export class AppUI {
   updateCounts() { for (const key of ["source", "result"]) { const target = document.querySelector(`#${key}Meta`); if (target) target.textContent = `${wordCount(editorText(this.editors[key])).toLocaleString()} words`; } }
   toggleEmptyResult() { document.querySelector("#emptyResult").classList.toggle("hidden", !!editorText(this.editors.result).trim()); }
 
+  /* ── Document list ───────────────────────────── */
   renderDocs() {
     const list = document.querySelector("#documentList"); list.replaceChildren();
     for (const doc of this.state.documents) {
@@ -384,7 +420,16 @@ export class AppUI {
 
   newDoc() { this.saveNow(); createDocument(this.state); this.loadActiveDocument(); this.renderDocs(); this.toast("New document created.", "success"); }
 
-  toggleSidebar() { this.sidebar.classList.toggle("collapsed"); }
+  /* ── Layout ──────────────────────────────────── */
+  toggleSidebar() {
+    const isCollapsed = this.sidebar.classList.toggle("collapsed");
+    const btn = document.querySelector("#sidebarToggleBtn");
+    if (btn) {
+      btn.textContent = isCollapsed ? "▸" : "◂";
+      btn.title = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
+      btn.setAttribute("aria-label", btn.title);
+    }
+  }
   toggleMaximizePane(paneId, btnEl) {
     if (this.maximizedPane === paneId) { this.maximizedPane = null; document.querySelector("#sourcePane").classList.remove("hidden"); document.querySelector("#resultPane").classList.remove("hidden"); document.querySelector("#splitter").classList.remove("hidden"); this.applyPaneRatio(); btnEl.textContent = "⤢"; btnEl.title = "Maximize pane"; return; }
     this.maximizedPane = paneId; document.querySelector("#sourcePane").classList.toggle("hidden", paneId !== "sourcePane"); document.querySelector("#resultPane").classList.toggle("hidden", paneId !== "resultPane"); document.querySelector("#splitter").classList.add("hidden"); document.querySelector("#editorStage").style.gridTemplateColumns = "1fr";

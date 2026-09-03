@@ -1,6 +1,8 @@
-const KEY = "pns.settings.v2";
-const LEGACY_KEY = "pns.settings.v1";
-const VERSION = 2;
+import { PREFERRED_MODEL_IDS } from "../config.js";
+
+const KEY = "pns.settings.v3";
+const LEGACY_KEYS = ["pns.settings.v2", "pns.settings.v1"];
+const VERSION = 3;
 
 const defaults = () => ({
   version: VERSION,
@@ -8,7 +10,11 @@ const defaults = () => ({
   rememberApiKeys: true,
   customApiModels: [],
   customCredentials: {},
-  theme: "system"
+  theme: "system",
+  // v3: user-driven model management
+  enabledLocalModels: [...PREFERRED_MODEL_IDS],
+  addedApiModels: { gemini: [], openai: [] },
+  removedApiModels: []
 });
 
 function normalize(value = {}) {
@@ -19,17 +25,25 @@ function normalize(value = {}) {
     version: VERSION,
     apiKeys: { ...base.apiKeys, ...(value.apiKeys || {}) },
     customApiModels: Array.isArray(value.customApiModels) ? value.customApiModels : [],
-    customCredentials: { ...(value.customCredentials || {}) }
+    customCredentials: { ...(value.customCredentials || {}) },
+    enabledLocalModels: Array.isArray(value.enabledLocalModels) ? value.enabledLocalModels : [...PREFERRED_MODEL_IDS],
+    addedApiModels: {
+      gemini: Array.isArray(value.addedApiModels?.gemini) ? value.addedApiModels.gemini : [],
+      openai: Array.isArray(value.addedApiModels?.openai) ? value.addedApiModels.openai : []
+    },
+    removedApiModels: Array.isArray(value.removedApiModels) ? value.removedApiModels : []
   };
 }
 
 function migrate(raw) {
   if (!raw || typeof raw !== "object") return defaults();
   if (raw.version === VERSION) return normalize(raw);
+  // v1/v2 → v3: carry over existing keys, initialize new fields from defaults
   return normalize({
     apiKeys: raw.apiKeys || {},
     rememberApiKeys: raw.rememberApiKeys !== false,
-    customApiModels: raw.customApiModels || []
+    customApiModels: raw.customApiModels || [],
+    customCredentials: raw.customCredentials || {}
   });
 }
 
@@ -37,12 +51,15 @@ export function loadSettings() {
   try {
     const current = localStorage.getItem(KEY);
     if (current) return migrate(JSON.parse(current));
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) {
-      const migrated = migrate(JSON.parse(legacy));
-      localStorage.setItem(KEY, JSON.stringify(migrated));
-      localStorage.removeItem(LEGACY_KEY);
-      return migrated;
+    // Try legacy keys in order
+    for (const legacyKey of LEGACY_KEYS) {
+      const legacy = localStorage.getItem(legacyKey);
+      if (legacy) {
+        const migrated = migrate(JSON.parse(legacy));
+        localStorage.setItem(KEY, JSON.stringify(migrated));
+        localStorage.removeItem(legacyKey);
+        return migrated;
+      }
     }
     return defaults();
   } catch {
@@ -70,3 +87,4 @@ export function clearPersistedApiKey(provider, settings) {
   settings.apiKeys[provider] = "";
   saveSettings(settings);
 }
+

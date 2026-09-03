@@ -18,7 +18,7 @@
   <meta name="twitter:description" content="Privacy-first AI note compression with local browser AI, editable rich-text results, and source-preserving workflows.">
   <link rel="canonical" href="https://anand-verma.github.io/">
   <title>Parallel Notes — AI Note Compression & Revision Notes</title>
-  <link rel="stylesheet" href="./assets/css/app.css?v=0.4.0">
+  <link rel="stylesheet" href="./assets/css/app.css?v=0.5.0">
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -32,7 +32,6 @@
               <div class="brand-subtitle">Write · Compress · Refine</div>
             </div>
           </div>
-          <button class="mini-btn" id="collapseSidebarBtn" title="Collapse sidebar">‹</button>
         </div>
 
         <div class="doc-list-head">
@@ -59,14 +58,17 @@
       <section class="main-area">
         <div class="ai-toolbar" style="flex-wrap: wrap; padding: 8px 16px;">
           <div class="ai-left">
-            <button class="icon-btn sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle sidebar" aria-label="Toggle sidebar">☰</button>
+            <button class="icon-btn sidebar-toggle-btn" id="sidebarToggleBtn" title="Collapse sidebar" aria-label="Collapse sidebar">◂</button>
             <div class="ai-chip"><span class="status-dot" id="aiDot"></span><span id="aiStatus">AI not loaded</span></div>
-            <label class="model-select">
-              <span>Model</span>
-              <select id="modelSelect" disabled>
-                <option>Detecting models…</option>
-              </select>
-            </label>
+            <div class="model-picker" id="modelPicker">
+              <button class="model-picker-trigger" id="modelPickerBtn" type="button">
+                <span class="picker-provider" id="pickerProvider">—</span>
+                <span class="picker-divider">·</span>
+                <span class="picker-model" id="pickerModel">Detecting…</span>
+                <span class="picker-caret">▾</span>
+              </button>
+              <div class="model-picker-menu" id="modelPickerMenu"></div>
+            </div>
           </div>
 
           <div class="ai-controls">
@@ -187,64 +189,126 @@
       </form>
     </dialog>
 
-    <dialog id="settingsDialog" class="modal">
+    <dialog id="settingsDialog" class="modal" style="width:min(580px,calc(100vw - 32px));padding:0;">
+      <div class="modal-head" style="padding:16px 20px 0;">
+        <div>
+          <div class="eyebrow">Preferences</div>
+          <h2>Settings & Configuration</h2>
+        </div>
+        <button class="icon-btn" type="button" id="closeSettingsBtn" aria-label="Close">×</button>
+      </div>
       <form method="dialog" id="settingsForm">
-        <div class="modal-head">
-          <div>
-            <div class="eyebrow">Preferences</div>
-            <h2>Settings & API Keys</h2>
+        <div class="settings-tabs" id="settingsTabs">
+          <div class="settings-tabs-list">
+            <button class="settings-tab active" data-tab="models" type="button">Models</button>
+            <button class="settings-tab" data-tab="data" type="button">Data</button>
           </div>
-          <button class="icon-btn" type="button" onclick="document.getElementById('settingsDialog').close()" aria-label="Close">×</button>
+          <button type="submit" class="primary-btn" style="align-self:center; padding:6px 12px; font-size:10px; height:fit-content;">Save Settings</button>
         </div>
-        <div class="modal-field" style="margin-top:16px;">
-          <label>OpenAI API Key</label>
-          <input type="password" id="openaiKey" placeholder="sk-..." class="form-input">
-        </div>
-        <div class="modal-field" style="margin-top:12px;">
-          <label>Gemini API Key</label>
-          <input type="password" id="geminiKey" placeholder="AIza..." class="form-input" autocomplete="off">
-        </div>
-        <label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px;">
-          <input type="checkbox" id="rememberApiKeys" checked> Remember API keys on this device
-        </label>
-        <p class="modal-copy" style="margin-top:10px;">Keys are sent directly from this browser to the selected provider. Remembered keys are stored in this browser's local storage; this is convenient storage, not a secure secret vault.</p>
-        
-        <div class="modal-field" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
-          <label>Custom OpenAI-Compatible API</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-            <input type="text" id="customApiLabel" placeholder="Label (optional)" class="form-input">
-            <input type="text" id="customApiModelId" placeholder="Model ID" class="form-input">
-            <input type="url" id="customApiBaseUrl" placeholder="https://api.example.com/v1" class="form-input" style="grid-column:1/-1;">
-            <input type="password" id="customApiKey" placeholder="API key (optional)" class="form-input" style="grid-column:1/-1;" autocomplete="off">
-          </div>
-          <button type="button" class="secondary-btn" id="addCustomModelBtn" style="margin-top:8px;width:100%;">Add custom API model</button>
-          <p class="modal-copy" style="margin-top:8px;">Works with OpenAI-compatible chat-completions endpoints such as compatible gateways or local servers. The endpoint must allow browser CORS requests.</p>
-          <div id="customModelList" class="custom-model-list"></div>
-        </div>
+        <div class="settings-panels">
 
-        <div class="modal-field" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
-          <label>Local Models Cache</label>
-          <div id="localModelCacheList" class="cache-list">
-            <p class="modal-copy">Checking cache status...</p>
-          </div>
-          <button type="button" class="secondary-btn" id="clearCacheBtn" style="margin-top:12px; width:100%; padding:8px; color: var(--danger);">Clear All Local Cache</button>
-          <p class="modal-copy" style="margin-top:8px;">This deletes all downloaded local models to free up disk space.</p>
-        </div>
-        
-        <div class="modal-field danger-zone" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
-          <label>Workspace Data</label>
-          <p class="modal-copy">Permanently remove all saved workspace documents from this site. API keys, settings, and downloaded local AI models are not removed.</p>
-          <button type="button" class="secondary-btn danger-action" id="clearWorkspaceBtn" style="margin-top:8px;width:100%;">Delete All Workspace Documents</button>
-          <p class="modal-copy" style="margin-top:8px;">To remove everything this site has stored, use your browser’s site-data controls. That can also remove settings, session data, caches, and service-worker data.</p>
-        </div>
+          <!-- ═══ MODELS TAB ═══ -->
+          <div class="settings-panel active" id="settingsPanel-models">
 
-        <div class="modal-actions" style="margin-top:20px;">
-          <button type="submit" class="primary-btn">Save settings</button>
+            <div class="settings-section">
+              <div class="settings-section-header">API Keys</div>
+              <div class="modal-field">
+                <label>OpenAI API Key</label>
+                <input type="password" id="openaiKey" placeholder="sk-..." class="form-input">
+              </div>
+              <div class="modal-field" style="margin-top:10px;">
+                <label>Gemini API Key</label>
+                <input type="password" id="geminiKey" placeholder="AIza..." class="form-input" autocomplete="off">
+              </div>
+              <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;">
+                <input type="checkbox" id="rememberApiKeys" checked> Remember API keys on this device
+              </label>
+              <p class="modal-copy" style="margin-top:8px;">Keys are sent directly from this browser to the selected provider. Remembered keys are stored in local storage for convenience, not as a secure vault.</p>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Local LLM Models</div>
+              <div id="localModelCards"></div>
+              <div class="add-model-section">
+                <button type="button" class="add-model-toggle" id="addLocalModelToggle">+ Add Local Model</button>
+                <div class="add-model-form" id="addLocalModelForm">
+                  <input type="text" id="addLocalModelId" class="form-input" placeholder="WebLLM Model ID (e.g. Phi-3.5-mini-instruct-q4f16_1-MLC)">
+                  <div class="add-model-validation" id="addLocalModelValidation"></div>
+                  <button type="button" class="primary-btn" id="addLocalModelBtn" disabled>Add Model</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Gemini Models</div>
+              <div id="geminiModelList"></div>
+              <div class="add-model-section">
+                <button type="button" class="add-model-toggle" id="addGeminiModelToggle">+ Add Gemini Model</button>
+                <div class="add-model-form" id="addGeminiModelForm">
+                  <input type="text" id="addGeminiModelId" class="form-input" placeholder="Gemini Model ID (e.g. gemini-2.5-flash)">
+                  <button type="button" class="primary-btn" id="addGeminiModelBtn">Add Model</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">OpenAI Models</div>
+              <div id="openaiModelList"></div>
+              <div class="add-model-section">
+                <button type="button" class="add-model-toggle" id="addOpenaiModelToggle">+ Add OpenAI Model</button>
+                <div class="add-model-form" id="addOpenaiModelForm">
+                  <input type="text" id="addOpenaiModelId" class="form-input" placeholder="OpenAI Model ID (e.g. gpt-4o)">
+                  <button type="button" class="primary-btn" id="addOpenaiModelBtn">Add Model</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Custom OpenAI-Compatible API</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <input type="text" id="customApiLabel" placeholder="Label (optional)" class="form-input">
+                <input type="text" id="customApiModelId" placeholder="Model ID" class="form-input">
+                <input type="url" id="customApiBaseUrl" placeholder="https://api.example.com/v1" class="form-input" style="grid-column:1/-1;">
+                <input type="password" id="customApiKey" placeholder="API key (optional)" class="form-input" style="grid-column:1/-1;" autocomplete="off">
+              </div>
+              <button type="button" class="secondary-btn" id="addCustomModelBtn" style="margin-top:8px;width:100%;">Add custom API model</button>
+              <p class="modal-copy" style="margin-top:8px;">Works with OpenAI-compatible chat-completions endpoints. The endpoint must allow browser CORS requests.</p>
+              <div id="customModelList" class="custom-model-list"></div>
+            </div>
+
+          </div>
+
+          <!-- ═══ DATA TAB ═══ -->
+          <div class="settings-panel" id="settingsPanel-data">
+
+            <div class="settings-section">
+              <div class="settings-section-header">Local Model Cache</div>
+              <div id="localModelCacheList" class="cache-list">
+                <p class="modal-copy">Checking cache status…</p>
+              </div>
+              <button type="button" class="secondary-btn danger-action" id="clearCacheBtn" style="margin-top:12px;width:100%;padding:8px;">Clear All Local Model Cache</button>
+              <p class="modal-copy" style="margin-top:8px;">Deletes all downloaded local models to free disk space. Models can be re-downloaded later.</p>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Workspace Documents</div>
+              <p class="modal-copy">Permanently remove all saved workspace documents. API keys, settings, and downloaded models are not affected.</p>
+              <button type="button" class="secondary-btn danger-action" id="clearWorkspaceBtn" style="margin-top:8px;width:100%;">Delete All Workspace Documents</button>
+            </div>
+
+            <div class="master-reset">
+              <div class="master-reset-label">⚠ Master Reset</div>
+              <div class="master-reset-note">Permanently removes ALL data stored by Parallel Notes: documents, settings, API keys, model cache, and service worker. This cannot be undone.</div>
+              <button type="button" class="master-reset-btn" id="masterResetBtn">Reset Everything</button>
+            </div>
+
+          </div>
+
         </div>
       </form>
     </dialog>
   </div>
 
-  <script type="module" src="./assets/js/app.js?v=0.4.0"></script>
+  <script type="module" src="./assets/js/app.js?v=0.5.0"></script>
 </body>
 </html>
