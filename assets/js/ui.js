@@ -76,7 +76,7 @@ export class AppUI {
       this.updateImportFileUI(file);
     };
     $("#cancelImportBtn").onclick = () => { this.cancelImport(); if (this.importDialog.open) this.importDialog.close(); };
-    $("#importForm").onsubmit = e => { e.preventDefault(); void this.importDocument(); };
+    $("#importForm").onsubmit = e => { if (e.submitter?.value === "cancel") return; e.preventDefault(); void this.importDocument(); };
     document.querySelectorAll("input[name=importMode]").forEach(input => input.addEventListener("change", () => this.updateImportModelVisibility()));
     this.importDialog.addEventListener("close", () => { if (this.importController) this.cancelImport(); });
     $("#themeBtn").onclick = () => this.toggleTheme();
@@ -131,7 +131,7 @@ export class AppUI {
 
     $("#customPromptBtn").onclick = () => this.openCustomDialog();
     $("#editCustomBtn").onclick = () => this.openCustomDialog();
-    $("#customForm").onsubmit = e => { e.preventDefault(); this.state.customInstruction = this.customInstruction.value.trim(); saveState(this.state); this.updateCustomPreview(); this.customDialog.close(); this.toast("Custom instruction applied.", "success"); };
+    $("#customForm").onsubmit = e => { if (e.submitter?.value === "cancel") return; e.preventDefault(); this.state.customInstruction = this.customInstruction.value.trim(); saveState(this.state); this.updateCustomPreview(); this.customDialog.close(); this.toast("Custom instruction applied.", "success"); };
     $("#loadModelBtn").onclick = async () => { try { await this.ai.loadSelectedModel(); this.resolveModelLoad(true); } catch (err) { this.resolveModelLoad(false); this.toast(err.message, "error"); } };
     this.modelDialog.addEventListener("close", () => { if (this.modelDialog.returnValue !== "load") this.resolveModelLoad(false); });
     $("#summarizeBtn").onclick = () => this.ai.busy ? this.stopGeneration() : this.summarize();
