@@ -41,6 +41,16 @@ export class AppUI {
     this.customInstruction.value = this.state.customInstruction || "";
     this.updateCustomPreview();
     this.initAI();
+    
+    if (window.innerWidth <= 700) {
+      this.sidebar.classList.add("collapsed");
+      const btn = document.querySelector("#sidebarToggleBtn");
+      if (btn) {
+        btn.textContent = "▸";
+        btn.title = "Expand sidebar";
+        btn.setAttribute("aria-label", btn.title);
+      }
+    }
   }
 
   bind() {
@@ -90,6 +100,9 @@ export class AppUI {
         document.querySelectorAll(".doc-item-dropdown.visible").forEach(m => m.classList.remove("visible"));
         document.querySelectorAll(".doc-item-menu-btn.open").forEach(b => b.classList.remove("open"));
       }
+    });
+    window.addEventListener("resize", () => {
+      this.applyPaneRatio();
     });
   }
 
@@ -432,14 +445,51 @@ export class AppUI {
   }
   toggleMaximizePane(paneId, btnEl) {
     if (this.maximizedPane === paneId) { this.maximizedPane = null; document.querySelector("#sourcePane").classList.remove("hidden"); document.querySelector("#resultPane").classList.remove("hidden"); document.querySelector("#splitter").classList.remove("hidden"); this.applyPaneRatio(); btnEl.textContent = "⤢"; btnEl.title = "Maximize pane"; return; }
-    this.maximizedPane = paneId; document.querySelector("#sourcePane").classList.toggle("hidden", paneId !== "sourcePane"); document.querySelector("#resultPane").classList.toggle("hidden", paneId !== "resultPane"); document.querySelector("#splitter").classList.add("hidden"); document.querySelector("#editorStage").style.gridTemplateColumns = "1fr";
-    const other = paneId === "sourcePane" ? document.querySelector("#maxResultBtn") : document.querySelector("#maxSourceBtn"); other.textContent = "⤢"; other.title = "Maximize pane"; btnEl.textContent = "⤡"; btnEl.title = "Minimize pane";
+    this.maximizedPane = paneId; document.querySelector("#sourcePane").classList.toggle("hidden", paneId !== "sourcePane"); document.querySelector("#resultPane").classList.toggle("hidden", paneId !== "resultPane"); document.querySelector("#splitter").classList.add("hidden"); this.applyPaneRatio();
+    const other = paneId === "sourcePane" ? document.querySelector("#maxResultBtn") : document.querySelector("#maxSourceBtn"); other.textContent = "⤢"; other.title = "Maximize pane"; btnEl.textContent = "◫"; btnEl.title = "Restore split view";
   }
-  applyPaneRatio() { const r = this.state.paneRatio || 50; document.querySelector("#editorStage").style.gridTemplateColumns = `${r}% 8px ${100-r}%`; }
+  applyPaneRatio() {
+    const r = this.state.paneRatio || 50;
+    const stage = document.querySelector("#editorStage");
+    if (!stage) return;
+    if (this.maximizedPane) {
+      stage.style.gridTemplateColumns = "1fr";
+      stage.style.gridTemplateRows = "1fr";
+    } else if (window.innerWidth <= 700) {
+      stage.style.gridTemplateColumns = "1fr";
+      stage.style.gridTemplateRows = `${r}% 8px ${100-r}%`;
+    } else {
+      stage.style.gridTemplateRows = "minmax(0, 1fr)";
+      stage.style.gridTemplateColumns = `${r}% 8px ${100-r}%`;
+    }
+  }
   setMode(mode) { document.querySelector("#modeSelect").value = mode; }
   updateCustomPreview() { const strip = document.querySelector("#customStrip"), preview = document.querySelector("#customInstructionPreview"), has = !!this.state.customInstruction; strip.classList.toggle("hidden", !has); preview.textContent = has ? this.state.customInstruction : "Add an instruction to steer the selected mode."; }
   openCustomDialog() { this.customInstruction.value = this.state.customInstruction || ""; if (!this.customDialog.open) this.customDialog.showModal(); }
-  setupSplitter() { const splitter = document.querySelector("#splitter"); let dragging = false; splitter.addEventListener("pointerdown", e => { dragging = true; splitter.setPointerCapture(e.pointerId); document.body.style.cursor = "col-resize"; }); splitter.addEventListener("pointermove", e => { if (!dragging) return; const stage = document.querySelector("#editorStage").getBoundingClientRect(); this.state.paneRatio = Math.max(25, Math.min(75, ((e.clientX-stage.left)/stage.width)*100)); this.applyPaneRatio(); }); splitter.addEventListener("pointerup", () => { dragging = false; document.body.style.cursor = ""; saveState(this.state); }); }
+  setupSplitter() {
+    const splitter = document.querySelector("#splitter");
+    let dragging = false;
+    splitter.addEventListener("pointerdown", e => {
+      dragging = true;
+      splitter.setPointerCapture(e.pointerId);
+      document.body.style.cursor = window.innerWidth <= 700 ? "row-resize" : "col-resize";
+    });
+    splitter.addEventListener("pointermove", e => {
+      if (!dragging) return;
+      const stage = document.querySelector("#editorStage").getBoundingClientRect();
+      if (window.innerWidth <= 700) {
+        this.state.paneRatio = Math.max(10, Math.min(90, ((e.clientY - stage.top) / stage.height) * 100));
+      } else {
+        this.state.paneRatio = Math.max(10, Math.min(90, ((e.clientX - stage.left) / stage.width) * 100));
+      }
+      this.applyPaneRatio();
+    });
+    splitter.addEventListener("pointerup", () => {
+      dragging = false;
+      document.body.style.cursor = "";
+      saveState(this.state);
+    });
+  }
   toggleTheme() { const root = document.documentElement; const next = root.dataset.theme === "dark" ? "light" : "dark"; root.dataset.theme = next; localStorage.setItem("pns.theme", next); }
   restoreTheme() { const saved = localStorage.getItem("pns.theme"); if (saved) document.documentElement.dataset.theme = saved; }
   toast(message, type = "") { const el = document.createElement("div"); el.className = `toast ${type}`; el.textContent = message; this.toastRegion.appendChild(el); setTimeout(() => el.remove(), 4200); }

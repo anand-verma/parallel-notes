@@ -8,6 +8,61 @@ import { TableRow } from "https://esm.sh/@tiptap/extension-table-row@3.29.2";
 import { TableHeader } from "https://esm.sh/@tiptap/extension-table-header@3.29.2";
 import { TableCell } from "https://esm.sh/@tiptap/extension-table-cell@3.29.2";
 import { Extension } from "https://esm.sh/@tiptap/core@3.29.2";
+import katex from "https://esm.sh/katex@0.16.11";
+
+/* ── Custom Math Extensions ───────────────────────────────── */
+const getMathAttributes = () => ({
+  latex: {
+    default: '',
+    parseHTML: el => {
+      const ann = el.querySelector('annotation');
+      if (ann && ann.textContent) return ann.textContent;
+      return el.getAttribute('data-latex') || '';
+    }
+  }
+});
+
+const getMathNodeView = (isBlock) => ({ node, getPos, editor }) => {
+  const dom = document.createElement('span');
+  dom.className = isBlock ? 'math-block' : 'math-inline';
+  if (isBlock) dom.style.display = 'block';
+  dom.style.cursor = 'pointer';
+  dom.title = 'Click to edit math';
+  dom.onclick = () => {
+    if (!editor.isEditable) return;
+    const newLatex = prompt('Edit math:', node.attrs.latex);
+    if (newLatex !== null) {
+      const pos = typeof getPos === 'function' ? getPos() : getPos;
+      editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, null, { latex: newLatex }));
+    }
+  };
+  try {
+    katex.render(node.attrs.latex, dom, { throwOnError: false, displayMode: isBlock });
+  } catch (e) { dom.textContent = node.attrs.latex; }
+  return { dom };
+};
+
+const MathInline = Node.create({
+  name: 'mathInline',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  addAttributes: getMathAttributes,
+  parseHTML() { return [{ tag: 'span.katex', getAttrs: el => !el.classList.contains('katex-display') && null }, { tag: 'span[data-latex]' }]; },
+  renderHTML({ node }) { return ['span', { 'data-latex': node.attrs.latex, class: 'math-inline' }, `\\(${node.attrs.latex}\\)`]; },
+  addNodeView() { return getMathNodeView(false); }
+});
+
+const MathBlock = Node.create({
+  name: 'mathBlock',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  addAttributes: getMathAttributes,
+  parseHTML() { return [{ tag: 'span.katex-display' }, { tag: 'div[data-latex]' }, { tag: 'span[data-latex].math-block' }]; },
+  renderHTML({ node }) { return ['span', { 'data-latex': node.attrs.latex, class: 'math-block', style: 'display:block' }, `\\[${node.attrs.latex}\\]`]; },
+  addNodeView() { return getMathNodeView(true); }
+});
 
 /* ── Custom Indent Extension ──────────────────────────────── */
 const Indent = Extension.create({
@@ -74,8 +129,10 @@ const Indent = Extension.create({
 });
 
 /* ── Extensions ──────────────────────────────────────────── */
-const extensions=[
+const extensions = [
   StarterKit,
+  MathInline,
+  MathBlock,
   Underline,
   Indent,
   Link.configure({openOnClick:false,autolink:true,defaultProtocol:"https"}),
