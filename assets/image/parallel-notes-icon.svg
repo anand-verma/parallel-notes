@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1100" role="img" aria-label="Parallel Notes abstract document transformation icon">
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4FAFF"/>
+      <stop offset="1" stop-color="#CFE7FF"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F5FFF8"/>
+      <stop offset="1" stop-color="#CDEFD9"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF9E8"/>
+      <stop offset="1" stop-color="#FFE2A0"/>
+    </linearGradient>
+
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2787E8"/>
+      <stop offset=".45" stop-color="#32B98A"/>
+      <stop offset="1" stop-color="#F5AA22"/>
+    </linearGradient>
+
+    <linearGradient id="blueFold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A9BEA"/>
+      <stop offset="1" stop-color="#1671C8"/>
+    </linearGradient>
+    <linearGradient id="greenFold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#62C69D"/>
+      <stop offset="1" stop-color="#2E9E79"/>
+    </linearGradient>
+    <linearGradient id="goldFold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD36A"/>
+      <stop offset="1" stop-color="#E89A18"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-opacity=".14"/>
+    </filter>
+    <filter id="ribbonShadow" x="-20%" y="-30%" width="150%" height="170%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-opacity=".16"/>
+    </filter>
+  </defs>
+
+  <!-- Back blue sheet -->
+  <g filter="url(#shadow)">
+    <path d="M92 175
+             C92 135 119 108 158 103
+             L432 72
+             C449 70 463 76 476 89
+             L605 218
+             L605 745
+             C605 785 578 812 538 812
+             L159 812
+             C119 812 92 785 92 745 Z"
+          fill="url(#blue)"/>
+    <path d="M432 72 L432 190
+             C432 211 445 224 466 224
+             L605 224 Z"
+          fill="url(#blueFold)"/>
+
+    <g fill="#5C8FBE" opacity=".92">
+      <rect x="174" y="272" width="267" height="22" rx="11"/>
+      <rect x="174" y="339" width="236" height="22" rx="11"/>
+      <rect x="174" y="406" width="198" height="22" rx="11"/>
+      <rect x="174" y="473" width="250" height="22" rx="11"/>
+      <rect x="174" y="540" width="208" height="22" rx="11"/>
+      <rect x="174" y="607" width="250" height="22" rx="11"/>
+    </g>
+  </g>
+
+  <!-- Middle green sheet -->
+  <g filter="url(#shadow)">
+    <path d="M385 362
+             C385 327 409 302 444 298
+             L669 273
+             C687 271 702 278 715 291
+             L834 410
+             L834 814
+             C834 852 808 878 770 878
+             L451 878
+             C412 878 385 852 385 814 Z"
+          fill="url(#green)"/>
+    <path d="M669 273 L669 383
+             C669 402 682 415 702 415
+             L834 415 Z"
+          fill="url(#greenFold)"/>
+
+    <g fill="#4E9F83" opacity=".92">
+      <rect x="477" y="472" width="218" height="21" rx="10.5"/>
+      <rect x="477" y="535" width="190" height="21" rx="10.5"/>
+      <rect x="477" y="598" width="164" height="21" rx="10.5"/>
+      <rect x="477" y="661" width="200" height="21" rx="10.5"/>
+      <rect x="477" y="724" width="150" height="21" rx="10.5"/>
+    </g>
+  </g>
+
+  <!-- Front gold sheet -->
+  <g filter="url(#shadow)">
+    <path d="M688 528
+             C688 496 711 472 744 468
+             L930 447
+             C947 445 961 451 973 463
+             L1080 570
+             L1080 855
+             C1080 891 1056 915 1020 915
+             L749 915
+             C713 915 688 891 688 855 Z"
+          fill="url(#gold)"/>
+    <path d="M930 447 L930 543
+             C930 561 942 573 960 573
+             L1080 573 Z"
+          fill="url(#goldFold)"/>
+
+    <g fill="#C89538" opacity=".9">
+      <rect x="759" y="628" width="205" height="20" rx="10"/>
+      <rect x="759" y="687" width="205" height="20" rx="10"/>
+      <rect x="759" y="746" width="205" height="20" rx="10"/>
+      <rect x="759" y="805" width="205" height="20" rx="10"/>
+    </g>
+  </g>
+
+  <!-- Smooth continuous transformation ribbon -->
+  <g filter="url(#ribbonShadow)">
+    <!-- White separation halo -->
+    <path d="M305 604
+             C407 522 512 520 607 568
+             C690 610 742 655 815 652
+             C856 650 889 635 916 611"
+          fill="none" stroke="#FFFFFF" stroke-width="72"
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Main ribbon -->
+    <path d="M305 604
+             C407 522 512 520 607 568
+             C690 610 742 655 815 652
+             C856 650 889 635 916 611"
+          fill="none" stroke="url(#ribbon)" stroke-width="52"
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Arrowhead constructed with smooth curves -->
+    <path d="M874 566
+             C889 557 905 562 918 574
+             L974 621
+             C984 630 984 643 974 652
+             L918 700
+             C905 711 889 716 874 707
+             C864 701 862 687 872 678
+             L910 642
+             L872 606
+             C862 596 864 572 874 566 Z"
+          fill="#F5AA22"/>
+  </g>
+
+  <!-- subtle ribbon highlight -->
+  <path d="M319 594
+           C414 529 510 531 599 576
+           C688 621 744 670 819 667
+           C860 665 892 650 918 628"
+        fill="none" stroke="#FFFFFF" stroke-opacity=".22"
+        stroke-width="9" stroke-linecap="round"/>
+</svg>

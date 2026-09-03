@@ -44,7 +44,13 @@ export async function generateGemini(model, messages, apiKey, { onToken, signal 
     body: JSON.stringify(payload)
   });
 
-  let res = await request();
+  let res;
+  try {
+    res = await request();
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    throw new Error("Network error: Could not connect to Gemini API. Please check your internet connection.");
+  }
 
   // Some model/API combinations may reject thinking configuration. Retry once
   // without it so generation still works on compatible models.
@@ -75,7 +81,13 @@ async function consumeGeminiSSE(response, { onToken, signal } = {}) {
 
   while (true) {
     if (signal?.aborted) throw new DOMException('Generation cancelled.', 'AbortError');
-    const { done, value } = await reader.read();
+    let done, value;
+    try {
+      ({ done, value } = await reader.read());
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      throw new Error("Network error during stream: Connection lost.");
+    }
     buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
 
     let idx;

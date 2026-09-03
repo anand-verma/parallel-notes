@@ -10,12 +10,18 @@ export async function generateOpenAICompatible(model, messages, apiKey, { onToke
   const baseUrl = normalizeBaseUrl(model.baseUrl);
   if (!baseUrl) throw new Error("API base URL is missing for this model.");
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    signal,
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: model.model || model.id, messages, temperature: 0.15, stream: true })
-  });
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      signal,
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: model.model || model.id, messages, temperature: 0.15, stream: true })
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    throw new Error(`Network error: Could not connect to ${baseUrl}. Please check your internet connection.`);
+  }
   if (!res.ok) throw await apiError(res, "OpenAI-compatible API");
   return consumeSSE(res, data => data.choices?.[0]?.delta?.content || "", { onToken, signal });
 }

@@ -104,3 +104,12 @@ export function deleteDocument(state, id) {
   saveWorkspace(state);
   return true;
 }
+
+export function getStorageUsage() {
+  try {
+    const data = localStorage.getItem(KEY) || "";
+    return new Blob([data]).size;
+  } catch {
+    return 0;
+  }
+}
