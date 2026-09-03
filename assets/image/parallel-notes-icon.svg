@@ -1,87 +1,154 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 540" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="80 80 380 380"
+     width="380"
+     height="380"
+     preserveAspectRatio="xMidYMid meet">
+
   <defs>
-    <!-- Gradients matching the original 3D lighting -->
-    <linearGradient id="blue-grad" x1="100" y1="100" x2="340" y2="340" gradientUnits="userSpaceOnUse">
+    <!-- Blue gradient -->
+    <linearGradient id="blue-grad"
+                    x1="100" y1="100"
+                    x2="340" y2="340"
+                    gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#00d2ff"/>
       <stop offset="100%" stop-color="#003adb"/>
     </linearGradient>
-    
-    <linearGradient id="yellow-grad" x1="200" y1="200" x2="440" y2="440" gradientUnits="userSpaceOnUse">
+
+    <!-- Yellow gradient -->
+    <linearGradient id="yellow-grad"
+                    x1="200" y1="200"
+                    x2="440" y2="440"
+                    gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#ffe600"/>
       <stop offset="100%" stop-color="#ff5900"/>
     </linearGradient>
 
-    <!-- Blur filter for the internal overlap shadows -->
-    <filter id="shadow-blur" x="-50%" y="-50%" width="200%" height="200%">
+    <!-- Small internal overlap shadow -->
+    <filter id="shadow-blur"
+            x="-50%"
+            y="-50%"
+            width="200%"
+            height="200%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="5"/>
     </filter>
 
-    <!-- Overall drop shadow for the 3D pop off the background -->
-    <filter id="bg-shadow" x="-20%" y="-20%" width="150%" height="150%">
-      <feDropShadow dx="8" dy="12" stdDeviation="10" flood-opacity="0.15" flood-color="#000000"/>
-    </filter>
-
-    <!-- Clip path to isolate the top-right overlapping section -->
+    <!-- Clip the upper-right section of the blue link -->
     <clipPath id="patch-clip">
-      <rect x="270" y="0" width="270" height="270" />
+      <rect x="270" y="0" width="270" height="270"/>
     </clipPath>
   </defs>
 
-  <!-- Group applying the global background shadow -->
-  <g filter="url(#bg-shadow)">
-    
-    <!-- Layer 1: Base Blue Link (Bottom layer) -->
-    <path fill-rule="evenodd" d="
-      M 160 100 
-      H 280 A 60 60 0 0 1 340 160 
-      V 280 A 60 60 0 0 1 280 340 
-      H 160 A 60 60 0 0 1 100 280 
-      V 160 A 60 60 0 0 1 160 100 Z 
-      
-      M 180 160 
-      A 20 20 0 0 0 160 180 
-      V 260 A 20 20 0 0 0 180 280 
-      H 260 A 20 20 0 0 0 280 260 
-      V 180 A 20 20 0 0 0 260 160 Z" 
-      fill="url(#blue-grad)" />
 
-    <!-- Layer 2: Shadow block cast by the Yellow link onto the Blue link -->
-    <rect x="200" y="280" width="60" height="60" fill="#000000" opacity="0.4" filter="url(#shadow-blur)" transform="translate(4, 6)" />
+  <!-- =========================================================
+       BLUE LINK — BOTTOM LAYER
+       ========================================================= -->
+  <path fill-rule="evenodd"
+        d="
+          M 160 100
+          H 280
+          A 60 60 0 0 1 340 160
+          V 280
+          A 60 60 0 0 1 280 340
+          H 160
+          A 60 60 0 0 1 100 280
+          V 160
+          A 60 60 0 0 1 160 100
+          Z
 
-    <!-- Layer 3: Base Yellow Link (Middle layer) -->
-    <path fill-rule="evenodd" d="
-      M 260 200 
-      H 380 A 60 60 0 0 1 440 260 
-      V 380 A 60 60 0 0 1 380 440 
-      H 260 A 60 60 0 0 1 200 380 
-      V 260 A 60 60 0 0 1 260 200 Z 
-      
-      M 280 260 
-      A 20 20 0 0 0 260 280 
-      V 360 A 20 20 0 0 0 280 380 
-      H 360 A 20 20 0 0 0 380 360 
-      V 280 A 20 20 0 0 0 360 260 Z" 
-      fill="url(#yellow-grad)" />
+          M 180 160
+          A 20 20 0 0 0 160 180
+          V 260
+          A 20 20 0 0 0 180 280
+          H 260
+          A 20 20 0 0 0 280 260
+          V 180
+          A 20 20 0 0 0 260 160
+          Z"
+        fill="url(#blue-grad)"/>
 
-    <!-- Layer 4: Shadow block cast by the top-right Blue link onto the Yellow link -->
-    <rect x="280" y="200" width="60" height="60" fill="#000000" opacity="0.4" filter="url(#shadow-blur)" transform="translate(4, 6)" />
 
-    <!-- Layer 5: Top-Right Blue Patch (Clipped duplicate of Layer 1 to create the interlock) -->
-    <g clip-path="url(#patch-clip)">
-      <path fill-rule="evenodd" d="
-        M 160 100 
-        H 280 A 60 60 0 0 1 340 160 
-        V 280 A 60 60 0 0 1 280 340 
-        H 160 A 60 60 0 0 1 100 280 
-        V 160 A 60 60 0 0 1 160 100 Z 
-        
-        M 180 160 
-        A 20 20 0 0 0 160 180 
-        V 260 A 20 20 0 0 0 180 280 
-        H 260 A 20 20 0 0 0 280 260 
-        V 180 A 20 20 0 0 0 260 160 Z" 
-        fill="url(#blue-grad)" />
-    </g>
-    
+  <!-- =========================================================
+       SHADOW CAST BY YELLOW LINK
+       ========================================================= -->
+  <rect x="200"
+        y="280"
+        width="60"
+        height="60"
+        fill="#000000"
+        opacity="0.4"
+        filter="url(#shadow-blur)"
+        transform="translate(4,6)"/>
+
+
+  <!-- =========================================================
+       YELLOW LINK — MIDDLE LAYER
+       ========================================================= -->
+  <path fill-rule="evenodd"
+        d="
+          M 260 200
+          H 380
+          A 60 60 0 0 1 440 260
+          V 380
+          A 60 60 0 0 1 380 440
+          H 260
+          A 60 60 0 0 1 200 380
+          V 260
+          A 60 60 0 0 1 260 200
+          Z
+
+          M 280 260
+          A 20 20 0 0 0 260 280
+          V 360
+          A 20 20 0 0 0 280 380
+          H 360
+          A 20 20 0 0 0 380 360
+          V 280
+          A 20 20 0 0 0 360 260
+          Z"
+        fill="url(#yellow-grad)"/>
+
+
+  <!-- =========================================================
+       SHADOW CAST BY TOP BLUE LINK
+       ========================================================= -->
+  <rect x="280"
+        y="200"
+        width="60"
+        height="60"
+        fill="#000000"
+        opacity="0.4"
+        filter="url(#shadow-blur)"
+        transform="translate(4,6)"/>
+
+
+  <!-- =========================================================
+       TOP-RIGHT BLUE PATCH
+       Creates the interlocking / entangled appearance
+       ========================================================= -->
+  <g clip-path="url(#patch-clip)">
+    <path fill-rule="evenodd"
+          d="
+            M 160 100
+            H 280
+            A 60 60 0 0 1 340 160
+            V 280
+            A 60 60 0 0 1 280 340
+            H 160
+            A 60 60 0 0 1 100 280
+            V 160
+            A 60 60 0 0 1 160 100
+            Z
+
+            M 180 160
+            A 20 20 0 0 0 160 180
+            V 260
+            A 20 20 0 0 0 180 280
+            H 260
+            A 20 20 0 0 0 280 260
+            V 180
+            A 20 20 0 0 0 260 160
+            Z"
+          fill="url(#blue-grad)"/>
   </g>
+
 </svg>
