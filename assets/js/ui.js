@@ -5,11 +5,18 @@ import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
 import { markdownToHtml } from "./services/markdown.js";
 import { copyRichText } from "./services/clipboard.js";
-import { exportHtmlDocument } from "./services/export.js";
+import { exportDocument } from "./services/export.js";
+import { ImportService } from "./services/import/import-service.js";
 import { getCredential, setCredential } from "./storage/credentials.js";
 import { clearAllModelCaches } from "./ai/providers/webllm.js";
 import { SettingsUI } from "./ui/settings-ui.js";
 import { renderModelPickerMenu, updatePickerTrigger, renderCacheList } from "./ui/ai-ui.js";
+
+function assertEditorContent(editor) {
+  const html = editor?.getHTML?.() || "";
+  if (!html.trim() || html === "<p></p>" || html === "<p><br></p>") throw new Error("Nothing to export.");
+  return html;
+}
 
 export class AppUI {
   constructor(state) {
@@ -26,6 +33,10 @@ export class AppUI {
     this.ai = new AIController({ ui: this, settings: this.settings });
     this.settingsUI = new SettingsUI({ ui: this, settings: this.settings });
     this.modelLoadWaiters = [];
+    this.importDialog = document.querySelector("#importDialog");
+    this.exportDialog = document.querySelector("#exportDialog");
+    this.exportPaneId = null;
+    this.importController = null;
     this.progressRenderTimer = null;
     this.progressRenderToken = 0;
     this.progressRenderInFlight = false;
@@ -57,6 +68,17 @@ export class AppUI {
   bind() {
     const $ = s => document.querySelector(s);
     $("#sidebarNewBtn").onclick = () => this.newDoc();
+    $("#sidebarImportBtn").onclick = () => this.openImportDialog();
+    $("#chooseImportFileBtn").onclick = () => $("#importFile").click();
+    $("#importFile").onchange = e => {
+      const file = e.target.files?.[0];
+      $("#importFileName").textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB` : "No file selected";
+      this.updateImportFileUI(file);
+    };
+    $("#cancelImportBtn").onclick = () => { this.cancelImport(); if (this.importDialog.open) this.importDialog.close(); };
+    $("#importForm").onsubmit = e => { e.preventDefault(); void this.importDocument(); };
+    document.querySelectorAll("input[name=importMode]").forEach(input => input.addEventListener("change", () => this.updateImportModelVisibility()));
+    this.importDialog.addEventListener("close", () => { if (this.importController) this.cancelImport(); });
     $("#themeBtn").onclick = () => this.toggleTheme();
     $("#settingsBtn").onclick = () => this.settingsUI.open();
     
@@ -114,6 +136,8 @@ export class AppUI {
     this.modelDialog.addEventListener("close", () => { if (this.modelDialog.returnValue !== "load") this.resolveModelLoad(false); });
     $("#summarizeBtn").onclick = () => this.ai.busy ? this.stopGeneration() : this.summarize();
     document.querySelectorAll("[data-action]").forEach(btn => btn.onclick = () => this.action(btn.dataset.action));
+    document.querySelectorAll("[data-export-format]").forEach(btn => btn.onclick = () => { void this.runExport(btn.dataset.exportFormat); });
+    this.exportDialog?.addEventListener("close", () => { this.exportPaneId = null; });
     
     // Document rename from pane
     const sourceNameInput = $("#sourceDocName");
@@ -283,6 +307,191 @@ export class AppUI {
       if (this.ai.busy) this.setAIStatus(`Loading local model · ${rounded}%`, "loading");
     }
     if (text) label.textContent = text;
+  }
+
+  /* ── Document import ─────────────────────────── */
+  renderImportModelOptions() {
+    const select = document.querySelector("#importAiModel");
+    if (!select) return;
+    const models = this.ai.models || [];
+    const previous = select.value;
+    select.replaceChildren();
+    const groups = [
+      ["Local LLM", models.filter(m => m.type === "local")],
+      ["Gemini", models.filter(m => m.provider === "gemini")],
+      ["OpenAI", models.filter(m => m.provider === "openai")],
+      ["Custom API", models.filter(m => m.type === "api" && !["gemini", "openai"].includes(m.provider))]
+    ];
+    let firstReady = "";
+    const credentialReady = (provider, model) => !!this.getCredential(provider, model);
+    for (const [label, group] of groups) {
+      if (!group.length) continue;
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = label;
+      for (const model of group) {
+        const option = document.createElement("option");
+        option.value = model.id;
+        option.textContent = model.label || model.id;
+        const ready = model.type === "local" ? !!model.isCached : credentialReady(model.provider, model);
+        if (!firstReady && ready) firstReady = model.id;
+        if (!ready) {
+          option.disabled = true;
+          option.textContent += model.type === "local" ? " · not downloaded" : " · configure API key";
+        }
+        optgroup.appendChild(option);
+      }
+      select.appendChild(optgroup);
+    }
+    const preferred = previous && models.some(m => m.id === previous && !select.querySelector(`option[value=\"${CSS.escape(previous)}\"]`)?.disabled)
+      ? previous
+      : (models.some(m => m.id === this.ai.selectedModel && !select.querySelector(`option[value=\"${CSS.escape(this.ai.selectedModel)}\"]`)?.disabled) ? this.ai.selectedModel : firstReady);
+    if (preferred) select.value = preferred;
+    const hint = document.querySelector("#importAiModelHint");
+    if (hint) hint.textContent = "Only configured or downloaded models can be used. This choice affects import assistance only; it does not change your main AI model.";
+  }
+
+  getImportType(file) {
+    if (!file) return null;
+    if (file.type === "application/pdf" || /\.pdf$/i.test(file.name || "")) return "pdf";
+    if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || /\.docx$/i.test(file.name || "")) return "docx";
+    return null;
+  }
+
+  updateImportFileUI(file = document.querySelector("#importFile")?.files?.[0]) {
+    const type = this.getImportType(file);
+    const options = document.querySelector("#importModeOptions");
+    const modelRow = document.querySelector("#importAiModelRow");
+    const chooseBtn = document.querySelector("#chooseImportFileBtn");
+    const startBtn = document.querySelector("#startImportBtn");
+    const standardInput = document.querySelector("input[name=importMode][value=standard]");
+    const enhancedInput = document.querySelector("input[name=importMode][value=enhanced]");
+    const standardLabelEl = standardInput ? standardInput.closest("label") : null;
+    const enhancedLabelEl = enhancedInput ? enhancedInput.closest("label") : null;
+    const standardLabel = standardLabelEl ? standardLabelEl.querySelector("strong") : null;
+    const standardDesc = standardLabelEl ? standardLabelEl.querySelector("small") : null;
+    const enhancedLabel = enhancedLabelEl ? enhancedLabelEl.querySelector("strong") : null;
+    const enhancedDesc = enhancedLabelEl ? enhancedLabelEl.querySelector("small") : null;
+
+    if (chooseBtn) chooseBtn.textContent = type === "pdf" ? "Choose PDF" : type === "docx" ? "Choose DOCX" : "Choose file";
+    if (startBtn) startBtn.textContent = type === "pdf" ? "Import PDF" : type === "docx" ? "Import DOCX" : "Import";
+
+    if (type === "docx") {
+      options?.classList.add("hidden");
+      modelRow?.classList.add("hidden");
+      if (standardLabel) standardLabel.textContent = "Standard DOCX conversion";
+      if (standardDesc) standardDesc.textContent = "Preserves Word headings, paragraphs, lists, tables, emphasis, and links.";
+      if (enhancedLabel) enhancedLabel.textContent = "Enhanced structure assist";
+      if (enhancedDesc) enhancedDesc.textContent = "Available for PDF imports; DOCX already uses Word's semantic structure.";
+      const standard = document.querySelector("input[name=importMode][value=standard]");
+      if (standard) standard.checked = true;
+      return;
+    }
+
+    options?.classList.remove("hidden");
+    if (standardLabel) standardLabel.textContent = "Standard extraction";
+    if (standardDesc) standardDesc.textContent = "Fast, deterministic PDF text and formatting reconstruction.";
+    if (enhancedLabel) enhancedLabel.textContent = "Enhanced structure assist";
+    if (enhancedDesc) enhancedDesc.textContent = "Uses the selected AI only to classify ambiguous structure. Extracted text remains the source of truth.";
+    this.updateImportModelVisibility();
+  }
+
+  updateImportModelVisibility() {
+    const row = document.querySelector("#importAiModelRow");
+    const file = document.querySelector("#importFile")?.files?.[0];
+    const enhanced = this.getImportType(file) === "pdf" && document.querySelector("input[name=importMode]:checked")?.value === "enhanced";
+    row?.classList.toggle("hidden", !enhanced);
+    if (enhanced) this.renderImportModelOptions();
+  }
+
+  openImportDialog() {
+    if (this.ai.busy) { this.toast("Finish the current AI operation before importing.", "error"); return; }
+    const form = document.querySelector("#importForm");
+    const file = document.querySelector("#importFile");
+    if (form) form.reset();
+    if (file) file.value = "";
+    document.querySelector("#importFileName").textContent = "No file selected";
+    document.querySelector("#importProgress")?.classList.add("hidden");
+    document.querySelector("#importWarning")?.classList.add("hidden");
+    document.querySelector("#startImportBtn").disabled = false;
+    document.querySelector("#chooseImportFileBtn").disabled = false;
+    this.renderImportModelOptions();
+    this.updateImportFileUI(null);
+    if (!this.importDialog.open) this.importDialog.showModal();
+  }
+
+  cancelImport() {
+    this.importController?.abort();
+    this.importController = null;
+  }
+
+  async importDocument() {
+    const file = document.querySelector("#importFile")?.files?.[0];
+    const type = this.getImportType(file);
+    if (!file) { this.toast("Choose a PDF or DOCX file to import.", "error"); return; }
+    if (!type) { this.toast("Only PDF and DOCX files are supported.", "error"); return; }
+    if (this.ai.busy) { this.toast("Finish the current AI operation before importing.", "error"); return; }
+    const mode = document.querySelector("input[name=importMode]:checked")?.value || "standard";
+    const importModelId = document.querySelector("#importAiModel")?.value || "";
+    if (type !== "pdf" && mode !== "standard") {
+      this.toast("Enhanced Structure Assist is currently available for PDF imports only.", "error");
+      return;
+    }
+    if (mode === "enhanced" && !importModelId) {
+      this.toast("Choose a configured or downloaded AI model for Enhanced Structure Assist.", "error");
+      return;
+    }
+    const startBtn = document.querySelector("#startImportBtn");
+    const chooseBtn = document.querySelector("#chooseImportFileBtn");
+    const progress = document.querySelector("#importProgress");
+    const warning = document.querySelector("#importWarning");
+    const bar = document.querySelector("#importProgressBar");
+    const label = document.querySelector("#importProgressLabel");
+    const pct = document.querySelector("#importProgressPercent");
+    const controller = new AbortController();
+    this.importController = controller;
+    startBtn.disabled = true; chooseBtn.disabled = true; progress.classList.remove("hidden"); warning.classList.add("hidden");
+    const setProgress = (progressOrValue = {}, text = "") => {
+      if (typeof progressOrValue === "object") {
+        const { page, pages, phase } = progressOrValue;
+        const value = pages ? (page / pages) * 80 : 0;
+        bar.style.width = `${Math.round(value)}%`; pct.textContent = `${Math.round(value)}%`;
+        label.textContent = type === "pdf"
+          ? (phase === "extract" ? `Extracting PDF · page ${page} of ${pages}` : "Processing import…")
+          : (phase === "extract" ? "Reading DOCX…" : "Processing DOCX…");
+      } else {
+        const value = 80 + Math.max(0, Math.min(20, Number(progressOrValue) || 0)) * 0.2;
+        bar.style.width = `${Math.round(value)}%`; pct.textContent = `${Math.round(value)}%`;
+        label.textContent = text || "Processing import…";
+      }
+    };
+    try {
+      const result = await ImportService.import(file, { mode, ai: mode === "enhanced" ? this.ai : null, modelId: mode === "enhanced" ? importModelId : null, signal: controller.signal, onProgress: setProgress });
+      if (controller.signal.aborted) throw new DOMException("Import cancelled", "AbortError");
+      bar.style.width = "100%"; pct.textContent = "100%"; label.textContent = "Creating document…";
+      this.saveNow();
+      const doc = createDocument(this.state, result.title);
+      doc.source = result.html || "<p></p>";
+      doc.result = "<p></p>";
+      doc.updatedAt = Date.now();
+      saveState(this.state);
+      this.loadActiveDocument();
+      this.renderDocs();
+      this.importController = null;
+      this.importDialog.close();
+      if (result.metadata?.warnings?.length) {
+        warning.textContent = result.metadata.warnings.join(" ");
+        warning.classList.remove("hidden");
+        this.toast(`${type.toUpperCase()} imported with a formatting limitation.`, "success");
+      } else {
+        this.toast(type === "pdf" ? `PDF imported · ${result.metadata?.pageCount || 0} pages` : "DOCX imported", "success");
+      }
+    } catch (err) {
+      if (err?.name === "AbortError") this.toast("PDF import cancelled.", "success");
+      else this.toast(err.message || "PDF import failed.", "error");
+    } finally {
+      if (this.importController === controller) this.importController = null;
+      startBtn.disabled = false; chooseBtn.disabled = false;
+    }
   }
 
   /* ── Editor ──────────────────────────────────── */
@@ -470,9 +679,48 @@ export class AppUI {
   }
 
   /* ── Actions ─────────────────────────────────── */
-  action(action) { if (action === "copy-source") this.copyEditor(this.editors.source); if (action === "copy-result") this.copyEditor(this.editors.result); if (action === "export-source") this.exportDoc("source"); if (action === "export-result") this.exportDoc("result"); }
+  action(action) {
+    if (action === "copy-source") this.copyEditor(this.editors.source);
+    if (action === "copy-result") this.copyEditor(this.editors.result);
+    if (action === "export-source") this.openExportDialog("source");
+    if (action === "export-result") this.openExportDialog("result");
+  }
   async copyEditor(editor) { try { const type = await copyRichText(editor); this.toast(type === "rich" ? "Copied rich text to clipboard" : "Copied plain text", "success"); } catch (err) { this.toast(err.message, "error"); } }
-  exportDoc(paneId) { try { const doc = activeDocument(this.state); exportHtmlDocument({ title: doc.title, content: paneId === "source" ? doc.source : doc.result, suffix: paneId === "source" ? "Notes" : "Draft" }); this.toast("Document exported successfully.", "success"); } catch (err) { this.toast(err.message, "error"); } }
+  openExportDialog(paneId) {
+    const editor = this.editors[paneId];
+    if (!editor) { this.toast("This pane is not available.", "error"); return; }
+    try { assertEditorContent(editor); } catch (err) { this.toast(err.message, "error"); return; }
+    this.exportPaneId = paneId;
+    const doc = activeDocument(this.state);
+    const label = paneId === "source" ? "Source" : "Draft";
+    document.querySelector("#exportDialogTitle").textContent = `Export ${label}`;
+    document.querySelector("#exportDialogCopy").textContent = `Export the current ${label.toLowerCase()} editor content. Choose a format below.`;
+    document.querySelector("#exportProgress").classList.add("hidden");
+    if (!this.exportDialog.open) this.exportDialog.showModal();
+  }
+  async runExport(format) {
+    const paneId = this.exportPaneId;
+    const editor = paneId ? this.editors[paneId] : null;
+    if (!editor) return;
+    const progress = document.querySelector("#exportProgress");
+    const label = document.querySelector("#exportProgressLabel");
+    const bar = document.querySelector("#exportProgressBar");
+    try {
+      assertEditorContent(editor);
+      const doc = activeDocument(this.state);
+      const content = editor.getHTML();
+      progress.classList.remove("hidden");
+      label.textContent = format === "pdf" ? "Creating PDF…" : "Creating Word document…";
+      bar.style.width = "25%";
+      await exportDocument({ format, title: doc.title, content, editorElement: editor.view?.dom, suffix: paneId === "source" ? "Notes" : "Draft" });
+      bar.style.width = "100%";
+      if (this.exportDialog.open) this.exportDialog.close();
+      this.toast(`${format.toUpperCase()} exported successfully.`, "success");
+    } catch (err) {
+      progress.classList.add("hidden");
+      this.toast(err.message || "Export failed.", "error");
+    }
+  }
 
   updateCounts() { for (const key of ["source", "result"]) { const target = document.querySelector(`#${key}Meta`); if (target) target.textContent = `${wordCount(editorText(this.editors[key])).toLocaleString()} words`; } }
   toggleEmptyResult() { document.querySelector("#emptyResult").classList.toggle("hidden", !!editorText(this.editors.result).trim()); }

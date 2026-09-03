@@ -103,6 +103,32 @@ export class AIController {
     }
   }
 
+  async runRaw({ system, user, onProgress, signal, modelId = null }) {
+    if (this.busy) throw new Error("An AI operation is already running.");
+    this.busy = true;
+    this.abortController = new AbortController();
+    try {
+      const model = modelId ? this.models.find(m => m.id === modelId) : this.getModelDef();
+      if (!model) throw new Error("Choose an AI model first.");
+      if (model.type === "local" && currentModel() !== model.id) {
+        if (!model.isCached) throw new Error("Download this model first using the model selector.");
+        this.ui.setAIStatus("Loading local model…", "loading");
+        await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text));
+      }
+      this.ui.setAIStatus("Assisting import…", "loading");
+      return await this.service.generateRaw({
+        model,
+        messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        onProgress,
+        signal: signal || this.abortController.signal
+      });
+    } finally {
+      this.busy = false;
+      this.abortController = null;
+      this.ui.setAIStatus("AI ready", "ready");
+    }
+  }
+
   async run(args) {
     if (this.busy) throw new Error("A generation is already running.");
     this.busy = true;

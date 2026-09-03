@@ -1,5 +1,5 @@
 /** Service Worker configuration and caching strategies. */
-const SW_APP_VERSION = "0.4.0";
+const SW_APP_VERSION = "0.7.0";
 const SW_SHELL_CACHE = `pns-shell-v${SW_APP_VERSION}`;
 const SW_SHELL = [
   "./",
@@ -26,5 +26,13 @@ const SW_SHELL = [
   "./assets/js/ai/providers/openai-compatible.js",
   "./assets/js/services/markdown.js",
   "./assets/js/services/clipboard.js",
-  "./assets/js/services/export.js"
+  "./assets/js/services/export.js",
+  "./assets/js/services/import/import-types.js",
+  "./assets/js/services/import/import-utils.js",
+  "./assets/js/services/import/import-service.js",
+  "./assets/js/services/import/docx/docx-importer.js",
+  "./assets/js/services/import/pdf/pdf-importer.js",
+  "./assets/js/services/import/pdf/pdf-extractor.js",
+  "./assets/js/services/import/pdf/pdf-structure.js",
+  "./assets/js/services/import/pdf/pdf-ai-repair.js"
 ];

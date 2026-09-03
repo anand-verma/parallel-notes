@@ -143,6 +143,7 @@ button{cursor:pointer}
     display: none !important;
 }
 .sidebar.collapsed .doc-list-head { padding: 10px 0; display: block; flex-shrink: 0; }
+.sidebar.collapsed .doc-list-actions { flex-direction: column; gap: 8px; align-items: center; }
 .sidebar.collapsed .sidebar-utils {
     display: flex !important;
     flex-direction: column !important;
@@ -165,6 +166,7 @@ button{cursor:pointer}
 .eyebrow{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2);font-weight:800}
 .mini-btn{width:28px;height:28px;border-radius:8px;font-size:13px}
 .doc-list-head{padding:10px 0 8px 0;font-size:11px;font-weight:750;color:var(--muted)}
+.doc-list-actions{display:flex;align-items:center;gap:6px}
 .document-list{overflow:auto;display:flex;flex-direction:column;gap:3px;flex:1}
 .doc-item{
   width:100%;display:flex;align-items:center;gap:9px;text-align:left;padding:9px 9px;border:1px solid transparent;
@@ -573,3 +575,33 @@ button{cursor:pointer}
 .tiptap table th, .tiptap table td { border: 1px solid var(--border); padding: 6px 10px; min-width: 1em; }
 .tiptap table th { background: var(--surface-2); font-weight: bold; text-align: left; }
 .tiptap blockquote { border-left: 3px solid var(--accent); margin: 0.5rem 0; color: var(--muted); background: var(--surface-2); padding: 8px 12px; border-radius: 0 6px 6px 0; }
+
+
+/* document import */
+.import-file-row{display:flex;align-items:center;gap:10px;margin-top:18px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:var(--surface-2)}
+.import-file-name{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.import-options{display:grid;gap:8px;margin-top:14px}
+.import-option{display:flex;gap:10px;align-items:flex-start;padding:11px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface)}
+.import-option:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.import-option input{margin-top:3px}
+.import-option span{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text)}
+.import-option small{font-size:10px;color:var(--muted);line-height:1.5}
+.import-progress{margin-top:14px}
+.import-warning{margin-top:12px;padding:9px 10px;border-radius:9px;background:var(--surface-2);color:var(--muted);font-size:10px;line-height:1.5}
+.import-warning.error{color:var(--danger,#b42318)}
+.hidden{display:none!important}
+
+/* enhanced import model picker */
+.import-ai-model{display:grid;gap:6px;margin-top:12px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.import-ai-model label{font-size:11px;font-weight:750;color:var(--text)}
+.import-ai-model select{width:100%;min-height:34px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);padding:6px 9px;font:inherit;font-size:11px}
+.import-ai-model small{font-size:10px;color:var(--muted);line-height:1.45}
+.import-ai-model.hidden{display:none}
+
+/* ── v0.7.0 Export format picker ───────────────── */
+.export-format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 6px}
+.export-format-btn{display:flex;align-items:center;gap:11px;text-align:left;padding:13px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-2);color:var(--text);cursor:pointer;transition:.14s ease}
+.export-format-btn:hover{border-color:var(--accent);background:var(--surface-3);transform:translateY(-1px)}
+.export-format-btn strong{display:block;font-size:12px}.export-format-btn small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.export-format-icon{width:34px;height:38px;display:grid;place-items:center;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);font-size:11px;font-weight:900;flex-shrink:0}
+@media (max-width:500px){.export-format-grid{grid-template-columns:1fr}}

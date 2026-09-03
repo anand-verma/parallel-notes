@@ -17,6 +17,19 @@ export class AIService {
     return true;
   }
 
+  async generateRaw({ model, messages, onToken, onProgress, signal }) {
+    if (!model) throw new Error("Choose an AI model first.");
+    if (model.type === "local") {
+      if (!isWebGPUSupported()) throw new Error("WebGPU is unavailable in this browser.");
+      if (!currentModel() || currentModel() !== model.id) await this.ensureLocalModel(model, { onProgress });
+      return generateWebLLM(model.id, messages, { onToken, onProgress, signal });
+    }
+    const key = getCredential(model.provider, this.settings, model);
+    if (model.protocol === "gemini") return generateGemini(model, messages, key, { onToken, signal });
+    if (model.protocol === "openai-compatible") return generateOpenAICompatible(model, messages, key, { onToken, signal });
+    throw new Error(`Unsupported AI protocol: ${model.protocol || "unknown"}`);
+  }
+
   async generate({ model, mode, custom, sourcePackage, onToken, onProgress, signal }) {
     if (!model) throw new Error("Choose an AI model first.");
     const prompt = buildPrompt({ mode, custom, sourcePackage });

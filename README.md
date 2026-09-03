@@ -1,6 +1,6 @@
 # Parallel Notes
 
-> **Write · Compress · Refine**
+> **Write · Import · Compress · Refine**
 
 **Parallel Notes** is a privacy-first, browser-based study and revision workspace that turns long parent/source notes into concise, editable revision notes while keeping the original material intact.
 
@@ -25,6 +25,17 @@
 - **Static Architecture:** GitHub Pages/static-hosting friendly. No Node.js runtime or backend server required.
 
 ---
+
+## 📥 Document Import (v0.7.0)
+
+- **PDF Import:** Import searchable PDFs directly into a new Source document.
+- **DOCX Import:** Import Word `.docx` documents into a new Source document using Mammoth for semantic Word-to-HTML conversion.
+- **DOCX structure preservation:** Word headings, paragraphs, lists, tables, emphasis, and links are converted into editor-ready HTML; embedded images are intentionally not persisted because the current editor does not use an image node.
+- **Structure-aware extraction:** Reconstructs paragraphs, headings, lists, basic tables, emphasis, multi-column reading order, and common repeated headers/footers where detectable.
+- **Hybrid option:** Standard extraction is deterministic and local. Enhanced Structure Assist can optionally use the currently selected AI model to classify ambiguous structure while preserving extracted text as the source of truth.
+- **Privacy:** The selected PDF is processed temporarily in memory. The PDF file itself is not saved to workspace storage or intentionally placed in application caches after extraction.
+- **Scalable input layer:** Import is routed through a generic `ImportService`, so additional formats can be added without changing the document/AI workflow.
+- **Privacy:** Imported source files are processed temporarily in memory; only the resulting editor content is saved through the normal workspace persistence path.
 
 ## 🧠 AI Workflow
 
@@ -187,3 +198,8 @@ _The best model is the one that compresses reliably while remaining fast enough 
 ## 📄 License
 
 See `LICENSE` for license terms.
+
+
+## 📤 Document Export (v0.7.0)
+
+Source and Result panes can be exported independently as real PDF or DOCX files. Export uses the current live editor content, including headings, lists, indentation, tables, rich text, and rendered LaTeX equations. PDF export uses browser-faithful DOM rendering for consistent visual output; DOCX export creates a real editable Word document and embeds rendered equations where native Word equation conversion is not available in the browser. DOCX export now uses the browser-resolved computed styles of the live Tiptap DOM so paragraph/heading spacing, line height, font family/size, bold/italic runs, indentation, lists, and table formatting are not reconstructed with a separate approximation layer.

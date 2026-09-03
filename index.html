@@ -19,7 +19,7 @@
   <link rel="canonical" href="https://anand-verma.github.io/">
   <title>Parallel Notes — AI Note Compression & Revision Notes</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
-  <link rel="stylesheet" href="./assets/css/app.css?v=0.5.0">
+  <link rel="stylesheet" href="./assets/css/app.css?v=0.7.0">
   <link rel="icon" href="./assets/image/parallel-notes-icon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -40,9 +40,14 @@
 
         <div class="doc-list-head">
           <span>Documents</span>
-          <button class="mini-btn" id="sidebarNewBtn" title="New document">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-          </button>
+          <div class="doc-list-actions">
+            <button class="mini-btn" id="sidebarImportBtn" title="Import document" aria-label="Import document">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>
+            </button>
+            <button class="mini-btn" id="sidebarNewBtn" title="New document" aria-label="New document">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            </button>
+          </div>
         </div>
         <div id="documentList" class="document-list"></div>
 
@@ -130,8 +135,8 @@
                 <button class="mini-btn" data-action="copy-source" title="Copy notes">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                 </button>
-                <button class="mini-btn" data-action="export-source" title="Export notes">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <button class="mini-btn" data-action="export-source" title="Export source" aria-label="Export source">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3"></path><path d="m7 8 5-5 5 5"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>
                 </button>
               </div>
             </div>
@@ -160,8 +165,8 @@
                 <button class="mini-btn" data-action="copy-result" title="Copy draft">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                 </button>
-                <button class="mini-btn" data-action="export-result" title="Export draft">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <button class="mini-btn" data-action="export-result" title="Export draft" aria-label="Export draft">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3"></path><path d="m7 8 5-5 5 5"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>
                 </button>
               </div>
             </div>
@@ -341,6 +346,76 @@
       </form>
     </dialog>
 
+    <dialog id="importDialog" class="modal" style="width:min(560px,calc(100vw - 32px));">
+      <form method="dialog" id="importForm">
+        <div class="modal-head">
+          <div>
+            <div class="eyebrow">Import Source</div>
+            <h2>Import a document</h2>
+          </div>
+          <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+        </div>
+        <p class="modal-copy">Import creates a new document and places the extracted content in its Source pane. Files are processed temporarily and are not stored by Parallel Notes.</p>
+        <div class="import-file-row">
+          <input type="file" id="importFile" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden>
+          <button type="button" class="secondary-btn" id="chooseImportFileBtn">Choose file</button>
+          <span id="importFileName" class="import-file-name">No file selected</span>
+        </div>
+        <div class="import-options" id="importModeOptions">
+          <label class="import-option">
+            <input type="radio" name="importMode" value="standard" checked>
+            <span><strong>Standard extraction</strong><small>Fast, deterministic PDF text and formatting reconstruction.</small></span>
+          </label>
+          <label class="import-option">
+            <input type="radio" name="importMode" value="enhanced">
+            <span><strong>Enhanced structure assist</strong><small>Uses the selected AI only to classify ambiguous structure. Extracted text remains the source of truth.</small></span>
+          </label>
+        </div>
+        <div id="importAiModelRow" class="import-ai-model hidden">
+          <label for="importAiModel">AI model for structure assist</label>
+          <select id="importAiModel"></select>
+          <small id="importAiModelHint">Choose which configured model should assist with ambiguous structure.</small>
+        </div>
+        <div id="importProgress" class="import-progress hidden">
+          <div class="progress-header"><span id="importProgressLabel">Preparing…</span><span id="importProgressPercent">0%</span></div>
+          <div class="progress-track"><div id="importProgressBar" class="progress-bar"></div></div>
+        </div>
+        <div id="importWarning" class="import-warning hidden"></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelImportBtn">Cancel</button>
+          <button type="submit" class="primary-btn" id="startImportBtn">Import</button>
+        </div>
+      </form>
+    </dialog>
+
+
+    <dialog id="exportDialog" class="modal" style="width:min(420px,calc(100vw - 32px));">
+      <form method="dialog" id="exportForm">
+        <div class="modal-head">
+          <div>
+            <div class="eyebrow">Export</div>
+            <h2 id="exportDialogTitle">Export document</h2>
+          </div>
+          <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+        </div>
+        <p class="modal-copy" id="exportDialogCopy">Choose a file format. The current editor content will be exported.</p>
+        <div class="export-format-grid">
+          <button type="button" class="export-format-btn" data-export-format="pdf">
+            <span class="export-format-icon">PDF</span>
+            <span><strong>PDF</strong><small>Print-ready document</small></span>
+          </button>
+          <button type="button" class="export-format-btn" data-export-format="docx">
+            <span class="export-format-icon">W</span>
+            <span><strong>Word (.docx)</strong><small>Editable Word document</small></span>
+          </button>
+        </div>
+        <div id="exportProgress" class="import-progress hidden">
+          <div class="progress-header"><span id="exportProgressLabel">Preparing…</span></div>
+          <div class="progress-track"><div class="progress-bar" id="exportProgressBar" style="width:0%"></div></div>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="instructionDialog" class="modal">
       <form method="dialog">
         <div class="modal-head">
@@ -359,6 +434,7 @@
     </dialog>
   </div>
 
-  <script type="module" src="./assets/js/app.js?v=0.5.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.12.0/mammoth.browser.min.js"></script>
+  <script type="module" src="./assets/js/app.js?v=0.7.0"></script>
 </body>
 </html>
