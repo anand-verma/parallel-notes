@@ -1,3 +1,4 @@
+/** IndexedDB/LocalStorage logic for persisting workspace documents. */
 import { WORKSPACE_STORAGE_VERSION } from "../config.js";
 
 const KEY = "pns.workspace.v2";
@@ -102,4 +103,13 @@ export function deleteDocument(state, id) {
   if (state.activeId === id) state.activeId = state.documents[0].id;
   saveWorkspace(state);
   return true;
+}
+
+export function getStorageUsage() {
+  try {
+    const data = localStorage.getItem(KEY) || "";
+    return new Blob([data]).size;
+  } catch {
+    return 0;
+  }
 }

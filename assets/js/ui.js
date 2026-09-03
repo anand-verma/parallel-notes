@@ -1,4 +1,5 @@
-import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage } from "./state.js";
+/** Core AppUI class handling layout, pane management, and interactions. */
+import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage } from "./state.js";
 import { createEditor, editorText, wordCount } from "./editor.js";
 import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
@@ -176,16 +177,20 @@ export class AppUI {
   }
 
   clearWorkspaceDocuments() {
-    if (this.ai.busy) this.stopGeneration();
-    this.stopProgressiveResult();
-    this.state = clearWorkspaceStorage();
-    if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
-    this.loadActiveDocument();
-    this.renderDocs();
-    this.setMode(this.state.mode);
-    this.customInstruction.value = this.state.customInstruction;
-    this.updateCustomPreview();
-    document.querySelector("#saveState").textContent = "Workspace cleared";
+    try {
+      if (this.ai.busy) this.stopGeneration();
+      this.stopProgressiveResult();
+      this.state = clearWorkspaceStorage();
+      if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
+      this.loadActiveDocument();
+      this.renderDocs();
+      this.setMode(this.state.mode);
+      this.customInstruction.value = this.state.customInstruction;
+      this.updateCustomPreview();
+      document.querySelector("#saveState").textContent = "Workspace cleared";
+    } catch (err) {
+      this.toast(err.message || "Failed to clear workspace.", "error");
+    }
   }
 
   /* ── AI status ───────────────────────────────── */
@@ -244,11 +249,20 @@ export class AppUI {
   }
   markDirty() { const el = document.querySelector("#saveState"); el.textContent = "Unsaved"; el.className = "save-state saving"; clearTimeout(this.saveTimer); this.saveTimer = setTimeout(() => this.saveNow(), 700); }
   saveNow() {
+    if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
     try {
       saveState(this.state);
       const el = document.querySelector("#saveState");
       el.textContent = `Saved · ${new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}`;
       el.className = "save-state";
+      
+      const usage = getStorageUsage();
+      if (usage > 4000000 && !this.storageWarned) {
+        this.storageWarned = true;
+        this.toast("Storage is nearly full (over 4MB). Delete old documents to prevent data loss.", "error");
+      } else if (usage < 3500000) {
+        this.storageWarned = false;
+      }
     } catch (error) {
       const el = document.querySelector("#saveState");
       el.textContent = "Storage full";
@@ -405,7 +419,16 @@ export class AppUI {
 
       // Delete option
       const delBtn = document.createElement("button"); delBtn.className = "danger-option"; delBtn.textContent = "✕ Delete";
-      delBtn.onclick = e => { e.stopPropagation(); dropdown.classList.remove("visible"); menuBtn.classList.remove("open"); if (confirm(`Delete "${doc.title}"?`)) { if (deleteDocument(this.state, doc.id)) { this.loadActiveDocument(); this.renderDocs(); this.toast("Document deleted", "success"); } else this.toast("Cannot delete the last document", "error"); } };
+      delBtn.onclick = e => { 
+        e.stopPropagation(); dropdown.classList.remove("visible"); menuBtn.classList.remove("open"); 
+        if (confirm(`Delete "${doc.title}"?`)) { 
+          try {
+            if (deleteDocument(this.state, doc.id)) { this.loadActiveDocument(); this.renderDocs(); this.toast("Document deleted", "success"); } else this.toast("Cannot delete the last document", "error"); 
+          } catch (err) {
+            this.toast(err.message || "Could not delete document.", "error");
+          }
+        } 
+      };
 
       dropdown.append(renameBtn, delBtn);
       menuBtn.onclick = e => {
@@ -424,14 +447,28 @@ export class AppUI {
   renameDoc(doc) {
     const newTitle = prompt("Rename document:", doc.title);
     if (newTitle === null || !newTitle.trim()) return;
-    doc.title = newTitle.trim();
-    doc.updatedAt = Date.now();
-    saveState(this.state);
-    this.renderDocs();
-    this.toast("Document renamed.", "success");
+    try {
+      doc.title = newTitle.trim();
+      doc.updatedAt = Date.now();
+      saveState(this.state);
+      this.renderDocs();
+      this.toast("Document renamed.", "success");
+    } catch (err) {
+      this.toast(err.message || "Could not save renamed document.", "error");
+    }
   }
 
-  newDoc() { this.saveNow(); createDocument(this.state); this.loadActiveDocument(); this.renderDocs(); this.toast("New document created.", "success"); }
+  newDoc() { 
+    this.saveNow(); 
+    try {
+      createDocument(this.state); 
+      this.loadActiveDocument(); 
+      this.renderDocs(); 
+      this.toast("New document created.", "success"); 
+    } catch (err) {
+      this.toast(err.message || "Could not create new document.", "error");
+    }
+  }
 
   /* ── Layout ──────────────────────────────────── */
   toggleSidebar() {

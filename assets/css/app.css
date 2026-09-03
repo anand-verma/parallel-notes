@@ -46,6 +46,7 @@ button{cursor:pointer}
 .app-shell{height:100%;display:flex;flex-direction:column}
 .topbar{display:none}
 .brand{display:flex;align-items:center;gap:11px}
+.brand-icon{width:34px;height:34px;flex-shrink:0}
 .brand-mark{
   width:34px;height:34px;border-radius:10px;background:var(--accent);
   color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:0 7px 18px rgba(91,91,214,.25);flex-shrink:0;
@@ -68,7 +69,95 @@ button{cursor:pointer}
   width:238px;flex:0 0 238px;border-right:1px solid var(--border);background:var(--surface);
   padding:18px 12px 12px;display:flex;flex-direction:column;transition:.2s ease;
 }
-.sidebar.collapsed{width:0;flex-basis:0;padding:0;overflow:hidden}
+.sidebar.collapsed { width: 58px; flex-basis: 58px; padding: 18px 12px 12px; overflow: hidden; }
+.sidebar.collapsed #brandText,
+.sidebar.collapsed .doc-list-head span,
+.sidebar.collapsed #documentList,
+.sidebar.collapsed #saveState,
+.sidebar.collapsed .sidebar-footer > div:last-child,
+.sidebar.collapsed .privacy-card,
+.sidebar.collapsed .storage-note { display: none !important; }
+
+/* ================================
+   COLLAPSED SIDEBAR BRAND
+   ================================ */
+
+.sidebar.collapsed .sidebar-head {
+    width: 100% !important;
+    height: 48px !important;
+    min-height: 48px !important;
+
+    padding: 0 0 14px 0 !important;
+    margin: 0 !important;
+
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+}
+
+.sidebar.collapsed .brand {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    flex: 0 0 34px !important;
+    overflow: visible !important;
+}
+
+.sidebar.collapsed .brand-icon {
+    display: block !important;
+
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+
+    max-width: 34px !important;
+    max-height: 34px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    object-fit: contain !important;
+
+    visibility: visible !important;
+    opacity: 1 !important;
+
+    flex: 0 0 34px !important;
+}
+
+.sidebar.collapsed #brandText {
+    display: none !important;
+}
+.sidebar.collapsed .doc-list-head { padding: 10px 0; display: block; flex-shrink: 0; }
+.sidebar.collapsed .sidebar-utils {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+}
+
+.sidebar.collapsed .sidebar-utils-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+}
 .sidebar-head,.doc-list-head{display:flex;align-items:center;justify-content:space-between}
 .sidebar-head{padding:0 6px 14px}
 .eyebrow{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2);font-weight:800}
@@ -153,7 +242,7 @@ button{cursor:pointer}
 .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 10; min-width: 140px; border-radius: 6px; padding: 4px; flex-direction: column; gap: 2px; }
 .toolbar-dropdown:hover .dropdown-menu { display: flex; }
 .dropdown-menu button { background: none; border: none; padding: 6px 12px; text-align: left; cursor: pointer; color: var(--text); border-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-.dropdown-menu button:hover { background: var(--surface-hover); }
+.dropdown-menu button:hover { background: var(--surface-3); }
 
 /* ── Editor wrap ────────────────────────────────── */
 .editor-wrap{min-height:0;flex:1;position:relative;overflow:auto}
@@ -213,7 +302,7 @@ button{cursor:pointer}
 @media (max-width:700px){
   .workspace { overflow-x: hidden; }
   .sidebar { width: 220px; flex: 0 0 220px; }
-  .sidebar.collapsed { width: 0; flex-basis: 0; }
+  .sidebar.collapsed { width: 0 !important; flex-basis: 0 !important; padding: 0 !important; }
   .main-area { flex: 0 0 100%; transition: .2s ease; }
   .document-bar{padding:0 10px}
   .ai-toolbar{padding:9px 10px}
@@ -447,3 +536,15 @@ button{cursor:pointer}
 .modal .form-input:focus{border-color:var(--accent)}
 .modal-field label{font-size:11px;font-weight:700;color:var(--text);display:block;margin-bottom:5px}
 
+/* ── TipTap Formats (Lists, Tables, Blockquotes) ── */
+.tiptap ul, .tiptap ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+.tiptap li { margin-bottom: 0.25rem; }
+.tiptap ul[data-type="taskList"] { list-style: none; padding: 0; }
+.tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; }
+.tiptap ul[data-type="taskList"] li > label { margin-right: 0.5rem; user-select: none; }
+.tiptap ul[data-type="taskList"] li > div { flex: 1; }
+.tiptap ul[data-type="taskList"] input[type="checkbox"] { margin-top: 3px; cursor: pointer; }
+.tiptap table { border-collapse: collapse; margin: 1rem 0; width: 100%; overflow: hidden; border-radius: 4px; box-shadow: 0 0 0 1px var(--border); }
+.tiptap table th, .tiptap table td { border: 1px solid var(--border); padding: 6px 10px; min-width: 1em; }
+.tiptap table th { background: var(--surface-2); font-weight: bold; text-align: left; }
+.tiptap blockquote { border-left: 3px solid var(--accent); margin: 0.5rem 0; color: var(--muted); background: var(--surface-2); padding: 8px 12px; border-radius: 0 6px 6px 0; }

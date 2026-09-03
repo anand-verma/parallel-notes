@@ -1,3 +1,4 @@
+/** Utility to package source editor text and images for AI context. */
 export function createSourcePackage(editor) {
   if (!editor) throw new Error("Source editor is unavailable.");
   const { from, to, empty } = getSelection(editor);

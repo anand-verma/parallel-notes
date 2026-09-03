@@ -1,3 +1,4 @@
+/** Main application entry point; initializes state and UI. */
 import { APP_VERSION } from "./config.js";
 import { loadState } from "./state.js";
 import { AppUI } from "./ui.js";

@@ -1,3 +1,4 @@
+/** Async stream chunk processing and progressive markdown parsing. */
 export async function consumeSSE(response, parseEvent, { onToken, signal } = {}) {
   if (!response.body) throw new Error("The API returned an empty response stream.");
   const reader = response.body.getReader();

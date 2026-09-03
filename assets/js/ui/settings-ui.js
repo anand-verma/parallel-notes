@@ -1,3 +1,4 @@
+/** Settings dialog UI class managing all configuration forms and tabs. */
 import { renderCacheList, renderCustomModels, renderLocalModelCards, renderApiModelList } from "./ai-ui.js";
 import { clearWorkspaceStorage } from "../storage/workspace-store.js";
 import { lookupWebLLMModel } from "../ai/model-registry.js";

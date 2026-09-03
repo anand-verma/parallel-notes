@@ -1,3 +1,4 @@
+/** High-level AI service wrapper for routing requests to specific providers. */
 import { buildPrompt, modeLabel, systemPolicy } from "./prompts.js";
 import { generateGemini } from "./providers/gemini.js";
 import { generateOpenAICompatible } from "./providers/openai-compatible.js";

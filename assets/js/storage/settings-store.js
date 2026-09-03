@@ -1,3 +1,4 @@
+/** LocalStorage wrappers for user settings and preferences. */
 import { PREFERRED_MODEL_IDS } from "../config.js";
 
 const KEY = "pns.settings.v3";

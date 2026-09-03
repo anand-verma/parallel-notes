@@ -1,2 +1,3 @@
-export { loadWorkspace as loadState, saveWorkspace as saveState, activeDocument, createDocument, deleteDocument, clearWorkspaceStorage } from "./storage/workspace-store.js";
+/** Application state management and workspace document tracking. */
+export { loadWorkspace as loadState, saveWorkspace as saveState, activeDocument, createDocument, deleteDocument, clearWorkspaceStorage, getStorageUsage } from "./storage/workspace-store.js";
 export { loadSettings, saveSettings } from "./storage/settings-store.js";

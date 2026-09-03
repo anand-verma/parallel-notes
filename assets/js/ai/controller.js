@@ -1,3 +1,4 @@
+/** AI Controller managing generation state, streaming, and UI updates. */
 import { buildModelRegistry, discoverLocalModels, preferredModel, groupModelsByProvider } from "./model-registry.js";
 import { isWebGPUSupported, isModelCached, loadModel, currentModel } from "./providers/webllm.js";
 import { AIService } from "./ai-service.js";

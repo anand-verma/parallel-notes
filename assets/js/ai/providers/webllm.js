@@ -1,3 +1,4 @@
+/** Local WebLLM integration for on-device inference using WebGPU. */
 import { WEBLLM_VERSION, PREFERRED_MODEL_IDS } from "../../config.js";
 
 let modPromise = null;

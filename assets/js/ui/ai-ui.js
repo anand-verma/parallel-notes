@@ -1,3 +1,4 @@
+/** UI components for AI model selection and local model cache management. */
 import { PROVIDER_LABELS, API_MODELS } from "../config.js";
 import { groupModelsByProvider } from "../ai/model-registry.js";
 

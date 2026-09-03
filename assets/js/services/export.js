@@ -1,3 +1,4 @@
+/** Service for exporting editor content as HTML/Word-compatible files. */
 export function exportHtmlDocument({ title, content, suffix = "Notes" }) {
   if (!content || content === "<p></p>") throw new Error("Nothing to export.");
   const safeTitle = String(title || "Untitled Notes").replace(/[<>]/g, "");
