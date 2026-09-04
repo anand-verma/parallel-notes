@@ -1,10 +1,42 @@
+## v0.9.4 — Export Service Reimagined & Workflow Rectification
+
+- **Page-by-page PDF renderer:** Large Source documents are no longer rendered into one giant canvas. Each A4 page is rasterized independently, avoiding browser canvas-dimension limits and reducing peak memory/CPU usage.
+- **Current editor is authoritative:** PDF/DOCX exports capture the exact current Tiptap editor content at download time, with Source and Draft handled identically.
+- **Line-safe pagination:** PDF page boundaries prefer actual rendered text-line bottoms, preventing normal paragraphs from cutting letters/lines between pages.
+- **Stable A4 layout:** Export width is independent of pane/window size, maximizing reliability in split, minimized, and maximized layouts.
+- **Export progress:** PDF/DOCX generation reports preparation, rendering/conversion, packaging, and download stages in a bottom-right status indicator.
+- **Faster DOCX path:** DOCX conversion uses a lightweight normalized HTML snapshot rather than cloning the full live editor DOM.
+- **Typography contract:** PDF and DOCX use a standard 12pt body-text baseline with proportional heading sizes (24/18/15/13pt), suitable for normal academic/Markdown conversion.
+- **AI document isolation:** An AI stream remains bound to the document/editor that started it; switching documents cannot populate the new document's Result pane.
+- **Modal error visibility:** Errors occurring while a dialog is open are displayed inside the active dialog instead of being hidden behind the backdrop blur.
+- **Upload dialog close:** Header close/cancel controls are explicit buttons and no longer accidentally submit the upload form.
+- **Upload icon:** Upload Document now uses an upward-arrow icon.
+
+
+## v0.9.3 — Workflow Restoration & Critical Fixes
+
+- Restored the v0.8 document workflow while retaining v0.9 modular controllers.
+- Most recently modified documents now rise to the top of the sidebar and persist in recency order.
+- Source/Draft export continues to use the current editor snapshot and is independent of pane size.
+- WebLLM now performs a compatibility preflight and no longer forces a high-performance adapter, improving compatibility with browsers that expose WebGPU only through the default adapter.
+- Added all v0.9 controller modules to the service-worker shell so offline startup cannot fail on missing controller modules.
+- Upload/Download nomenclature is retained.
 # Parallel Notes
 
 > **Write · Import · Compress · Refine**
 
 **Parallel Notes** is a privacy-first, browser-based study and revision workspace that turns long parent/source notes into concise, editable revision notes while keeping the original material intact.
 
-## 🚀 v0.8.0 Storage & State Architecture
+## 🚀 v0.9.1 Modular UI Architecture
+
+- **DocumentController:** Owns document CRUD, autosave, persistence coordination, and cross-tab workspace synchronization.
+- **EditorController:** Owns Tiptap editor lifecycle, editor-derived counts, dirty updates, and rendering cleanup.
+- **ImportController:** Owns PDF/DOCX import validation, progress, cancellation, and import-specific model selection.
+- **ExportController:** Owns export dialog state, validation, and document export execution.
+- **AIController:** Remains the dedicated AI orchestration boundary, including generation lifecycle and local-model management.
+- **Thin AppUI facade:** AppUI now focuses on shell/layout interactions and delegates document, editor, import, and export workflows to dedicated controllers.
+
+## v0.8.0 Storage & State Architecture
 
 - **IndexedDB workspace:** Documents are persisted individually in IndexedDB instead of one synchronous localStorage workspace blob.
 - **Legacy migration:** Existing `pns.workspace.v2` / `v1` localStorage workspaces are migrated automatically on first launch.
@@ -20,7 +52,7 @@
 - **Safe cache clearing:** Local model caches are cleared only after active local generation has fully terminated; the previous fixed timeout race has been removed.
 - **Generation cancellation:** AI operations now expose an awaitable completion lifecycle so destructive cache actions cannot race an in-flight stream.
 - **Credential ownership:** Custom-model credentials are managed through the credential storage module, including reliable cleanup when a custom model is removed.
-- **Cache-busting:** Application and service-worker shell versions are bumped to `0.8.0`.
+- **Cache-busting:** Application and service-worker shell versions are bumped to `0.9.1`.
 
 ## ✨ Features
 

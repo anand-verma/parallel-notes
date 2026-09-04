@@ -1,22 +1,18 @@
 /** Core AppUI class handling layout, pane management, and interactions. */
-import { saveState, saveDocument, saveWorkspaceMeta, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, ensureUniqueTitle, subscribeWorkspaceChanges, reloadWorkspace } from "./state.js";
-import { createEditor, editorText, wordCount } from "./editor.js";
+import { saveState, saveDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, subscribeWorkspaceChanges, reloadWorkspace, activeDocument, ensureUniqueTitle } from "./state.js";
+import { wordCount } from "./editor.js";
+
 import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
 import { markdownToHtml } from "./services/markdown.js";
 import { copyRichText } from "./services/clipboard.js";
-import { exportDocument } from "./services/export.js";
-import { ImportService } from "./services/import/import-service.js";
 import { getCredential, setCredential, setCustomCredential as setStoredCustomCredential, removeCustomCredential as removeStoredCustomCredential } from "./storage/credentials.js";
 import { clearAllModelCaches } from "./ai/providers/webllm.js";
 import { SettingsUI } from "./ui/settings-ui.js";
+import { DocumentController } from "./ui/document-controller.js";
+import { ImportController } from "./ui/import-controller.js";
+import { ExportController } from "./ui/export-controller.js";
 import { renderModelPickerMenu, updatePickerTrigger, renderCacheList } from "./ui/ai-ui.js";
-
-function assertEditorContent(editor) {
-  const html = editor?.getHTML?.() || "";
-  if (!html.trim() || html === "<p></p>" || html === "<p><br></p>") throw new Error("Nothing to export.");
-  return html;
-}
 
 export class AppUI {
   constructor(state) {
@@ -32,14 +28,13 @@ export class AppUI {
     this.toastRegion = document.querySelector("#toastRegion");
     this.ai = new AIController({ ui: this, settings: this.settings });
     this.settingsUI = new SettingsUI({ ui: this, settings: this.settings });
+    this.documents = new DocumentController(this);
+    this.imports = new ImportController(this);
+    this.exports = new ExportController(this);
     this.modelLoadWaiters = [];
     this.importDialog = document.querySelector("#importDialog");
     this.exportDialog = document.querySelector("#exportDialog");
     this.exportPaneId = null;
-    this.importController = null;
-    this.progressRenderTimer = null;
-    this.progressRenderToken = 0;
-    this.progressRenderInFlight = false;
     this.isDirty = false;
     this.workspaceConflict = false;
     this.workspaceUnsubscribe = null;
@@ -79,10 +74,12 @@ export class AppUI {
       $("#importFileName").textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB` : "No file selected";
       this.updateImportFileUI(file);
     };
-    $("#cancelImportBtn").onclick = () => { this.cancelImport(); if (this.importDialog.open) this.importDialog.close(); };
-    $("#importForm").onsubmit = e => { if (e.submitter?.value === "cancel") return; e.preventDefault(); void this.importDocument(); };
+    $("#cancelImportBtn").onclick = e => { e.preventDefault(); this.cancelImport(); if (this.importDialog.open) this.importDialog.close(); };
+    this.importDialog.querySelector(".modal-head button")?.addEventListener("click", e => { e.preventDefault(); this.cancelImport(); this.importDialog.close(); });
+    this.exportDialog?.querySelector(".modal-head button")?.addEventListener("click", e => { e.preventDefault(); if (this.exportDialog.open) this.exportDialog.close(); });
+    $("#importForm").onsubmit = e => { e.preventDefault(); void this.importDocument(); };
     document.querySelectorAll("input[name=importMode]").forEach(input => input.addEventListener("change", () => this.updateImportModelVisibility()));
-    this.importDialog.addEventListener("close", () => { if (this.importController) this.cancelImport(); });
+    this.importDialog.addEventListener("close", () => { if (this.imports.controller) this.cancelImport(); });
     $("#themeBtn").onclick = () => this.toggleTheme();
     $("#settingsBtn").onclick = () => this.settingsUI.open();
     
@@ -311,570 +308,210 @@ export class AppUI {
     if (text) label.textContent = text;
   }
 
-  /* ── Document import ─────────────────────────── */
-  renderImportModelOptions() {
-    const select = document.querySelector("#importAiModel");
-    if (!select) return;
-    const models = this.ai.models || [];
-    const previous = select.value;
-    select.replaceChildren();
-    const groups = [
-      ["Local LLM", models.filter(m => m.type === "local")],
-      ["Gemini", models.filter(m => m.provider === "gemini")],
-      ["OpenAI", models.filter(m => m.provider === "openai")],
-      ["Custom API", models.filter(m => m.type === "api" && !["gemini", "openai"].includes(m.provider))]
-    ];
-    let firstReady = "";
-    const credentialReady = (provider, model) => !!this.getCredential(provider, model);
-    for (const [label, group] of groups) {
-      if (!group.length) continue;
-      const optgroup = document.createElement("optgroup");
-      optgroup.label = label;
-      for (const model of group) {
-        const option = document.createElement("option");
-        option.value = model.id;
-        option.textContent = model.label || model.id;
-        const ready = model.type === "local" ? !!model.isCached : credentialReady(model.provider, model);
-        if (!firstReady && ready) firstReady = model.id;
-        if (!ready) {
-          option.disabled = true;
-          option.textContent += model.type === "local" ? " · not downloaded" : " · configure API key";
-        }
-        optgroup.appendChild(option);
-      }
-      select.appendChild(optgroup);
-    }
-    const preferred = previous && models.some(m => m.id === previous && !select.querySelector(`option[value=\"${CSS.escape(previous)}\"]`)?.disabled)
-      ? previous
-      : (models.some(m => m.id === this.ai.selectedModel && !select.querySelector(`option[value=\"${CSS.escape(this.ai.selectedModel)}\"]`)?.disabled) ? this.ai.selectedModel : firstReady);
-    if (preferred) select.value = preferred;
-    const hint = document.querySelector("#importAiModelHint");
-    if (hint) hint.textContent = "Only configured or downloaded models can be used. This choice affects import assistance only; it does not change your main AI model.";
-  }
+  /* ── Import lifecycle ───────────────────────── */
+  renderImportModelOptions() { return this.imports.renderImportModelOptions(); }
+  getImportType(file) { return this.imports.getImportType(file); }
+  updateImportFileUI(file) { return this.imports.updateImportFileUI(file); }
+  updateImportModelVisibility() { return this.imports.updateImportModelVisibility(); }
+  openImportDialog() { return this.imports.openImportDialog(); }
+  cancelImport() { return this.imports.cancelImport(); }
+  async importDocument() { return this.imports.importDocument(); }
 
-  getImportType(file) {
-    if (!file) return null;
-    if (file.type === "application/pdf" || /\.pdf$/i.test(file.name || "")) return "pdf";
-    if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || /\.docx$/i.test(file.name || "")) return "docx";
-    return null;
-  }
+  /* ── Document lifecycle ─────────────────────── */
+  loadActiveDocument() { return this.documents.loadActiveDocument(); }
+  onEditorUpdate(key) { return this.documents.onEditorUpdate(key); }
+  scheduleCountUpdate() { return this.documents.scheduleCountUpdate(); }
+  markDirty() { return this.documents.markDirty(); }
+  async persistWorkspaceMeta() { return this.documents.persistWorkspaceMeta(); }
+  async persistActiveDocument() { return this.documents.persistActiveDocument(); }
+  async saveNow() { return this.documents.saveNow(); }
+  async handleWorkspaceExternalChange(event) { return this.documents.handleWorkspaceExternalChange(event); }
 
-  updateImportFileUI(file = document.querySelector("#importFile")?.files?.[0]) {
-    const type = this.getImportType(file);
-    const options = document.querySelector("#importModeOptions");
-    const modelRow = document.querySelector("#importAiModelRow");
-    const chooseBtn = document.querySelector("#chooseImportFileBtn");
-    const startBtn = document.querySelector("#startImportBtn");
-    const standardInput = document.querySelector("input[name=importMode][value=standard]");
-    const enhancedInput = document.querySelector("input[name=importMode][value=enhanced]");
-    const standardLabelEl = standardInput ? standardInput.closest("label") : null;
-    const enhancedLabelEl = enhancedInput ? enhancedInput.closest("label") : null;
-    const standardLabel = standardLabelEl ? standardLabelEl.querySelector("strong") : null;
-    const standardDesc = standardLabelEl ? standardLabelEl.querySelector("small") : null;
-    const enhancedLabel = enhancedLabelEl ? enhancedLabelEl.querySelector("strong") : null;
-    const enhancedDesc = enhancedLabelEl ? enhancedLabelEl.querySelector("small") : null;
-
-    if (chooseBtn) chooseBtn.textContent = type === "pdf" ? "Choose PDF" : type === "docx" ? "Choose DOCX" : "Choose file";
-    if (startBtn) startBtn.textContent = type === "pdf" ? "Import PDF" : type === "docx" ? "Import DOCX" : "Import";
-
-    if (type === "docx") {
-      options?.classList.add("hidden");
-      modelRow?.classList.add("hidden");
-      if (standardLabel) standardLabel.textContent = "Standard DOCX conversion";
-      if (standardDesc) standardDesc.textContent = "Preserves Word headings, paragraphs, lists, tables, emphasis, and links.";
-      if (enhancedLabel) enhancedLabel.textContent = "Enhanced structure assist";
-      if (enhancedDesc) enhancedDesc.textContent = "Available for PDF imports; DOCX already uses Word's semantic structure.";
-      const standard = document.querySelector("input[name=importMode][value=standard]");
-      if (standard) standard.checked = true;
-      return;
-    }
-
-    options?.classList.remove("hidden");
-    if (standardLabel) standardLabel.textContent = "Standard extraction";
-    if (standardDesc) standardDesc.textContent = "Fast, deterministic PDF text and formatting reconstruction.";
-    if (enhancedLabel) enhancedLabel.textContent = "Enhanced structure assist";
-    if (enhancedDesc) enhancedDesc.textContent = "Uses the selected AI only to classify ambiguous structure. Extracted text remains the source of truth.";
-    this.updateImportModelVisibility();
-  }
-
-  updateImportModelVisibility() {
-    const row = document.querySelector("#importAiModelRow");
-    const file = document.querySelector("#importFile")?.files?.[0];
-    const enhanced = this.getImportType(file) === "pdf" && document.querySelector("input[name=importMode]:checked")?.value === "enhanced";
-    row?.classList.toggle("hidden", !enhanced);
-    if (enhanced) this.renderImportModelOptions();
-  }
-
-  openImportDialog() {
-    if (this.ai.busy) { this.toast("Finish the current AI operation before importing.", "error"); return; }
-    const form = document.querySelector("#importForm");
-    const file = document.querySelector("#importFile");
-    if (form) form.reset();
-    if (file) file.value = "";
-    document.querySelector("#importFileName").textContent = "No file selected";
-    document.querySelector("#importProgress")?.classList.add("hidden");
-    document.querySelector("#importWarning")?.classList.add("hidden");
-    document.querySelector("#startImportBtn").disabled = false;
-    document.querySelector("#chooseImportFileBtn").disabled = false;
-    this.renderImportModelOptions();
-    this.updateImportFileUI(null);
-    if (!this.importDialog.open) this.importDialog.showModal();
-  }
-
-  cancelImport() {
-    this.importController?.abort();
-    this.importController = null;
-  }
-
-  async importDocument() {
-    const file = document.querySelector("#importFile")?.files?.[0];
-    const type = this.getImportType(file);
-    if (!file) { this.toast("Choose a PDF or DOCX file to import.", "error"); return; }
-    if (!type) { this.toast("Only PDF and DOCX files are supported.", "error"); return; }
-    if (this.ai.busy) { this.toast("Finish the current AI operation before importing.", "error"); return; }
-    const mode = document.querySelector("input[name=importMode]:checked")?.value || "standard";
-    const importModelId = document.querySelector("#importAiModel")?.value || "";
-    if (type !== "pdf" && mode !== "standard") {
-      this.toast("Enhanced Structure Assist is currently available for PDF imports only.", "error");
-      return;
-    }
-    if (mode === "enhanced" && !importModelId) {
-      this.toast("Choose a configured or downloaded AI model for Enhanced Structure Assist.", "error");
-      return;
-    }
-    const startBtn = document.querySelector("#startImportBtn");
-    const chooseBtn = document.querySelector("#chooseImportFileBtn");
-    const progress = document.querySelector("#importProgress");
-    const warning = document.querySelector("#importWarning");
-    const bar = document.querySelector("#importProgressBar");
-    const label = document.querySelector("#importProgressLabel");
-    const pct = document.querySelector("#importProgressPercent");
-    const controller = new AbortController();
-    this.importController = controller;
-    startBtn.disabled = true; chooseBtn.disabled = true; progress.classList.remove("hidden"); warning.classList.add("hidden");
-    const setProgress = (progressOrValue = {}, text = "") => {
-      if (typeof progressOrValue === "object") {
-        const { page, pages, phase } = progressOrValue;
-        const value = pages ? (page / pages) * 80 : 0;
-        bar.style.width = `${Math.round(value)}%`; pct.textContent = `${Math.round(value)}%`;
-        label.textContent = type === "pdf"
-          ? (phase === "extract" ? `Extracting PDF · page ${page} of ${pages}` : "Processing import…")
-          : (phase === "extract" ? "Reading DOCX…" : "Processing DOCX…");
-      } else {
-        const value = 80 + Math.max(0, Math.min(20, Number(progressOrValue) || 0)) * 0.2;
-        bar.style.width = `${Math.round(value)}%`; pct.textContent = `${Math.round(value)}%`;
-        label.textContent = text || "Processing import…";
-      }
-    };
-    try {
-      const result = await ImportService.import(file, { mode, ai: mode === "enhanced" ? this.ai : null, modelId: mode === "enhanced" ? importModelId : null, signal: controller.signal, onProgress: setProgress });
-      if (controller.signal.aborted) throw new DOMException("Import cancelled", "AbortError");
-      bar.style.width = "100%"; pct.textContent = "100%"; label.textContent = "Creating document…";
-      await this.saveNow();
-      const doc = createDocument(this.state, result.title);
-      doc.source = result.html || "<p></p>";
-      doc.result = "<p></p>";
-      doc.updatedAt = Date.now();
-      await saveState(this.state);
-      this.isDirty = false;
-      this.loadActiveDocument();
-      this.renderDocs();
-      this.importController = null;
-      this.importDialog.close();
-      if (result.metadata?.warnings?.length) {
-        warning.textContent = result.metadata.warnings.join(" ");
-        warning.classList.remove("hidden");
-        this.toast(`${type.toUpperCase()} imported with a formatting limitation.`, "success");
-      } else {
-        this.toast(type === "pdf" ? `PDF imported · ${result.metadata?.pageCount || 0} pages` : "DOCX imported", "success");
-      }
-    } catch (err) {
-      if (err?.name === "AbortError") this.toast("PDF import cancelled.", "success");
-      else this.toast(err.message || "PDF import failed.", "error");
-    } finally {
-      if (this.importController === controller) this.importController = null;
-      startBtn.disabled = false; chooseBtn.disabled = false;
-    }
-  }
-
-  /* ── Editor ──────────────────────────────────── */
-  loadActiveDocument() {
-    const doc = activeDocument(this.state);
-    
-    // Update pane titles
-    const sourceInput = document.querySelector("#sourceDocName");
-    const resultSpan = document.querySelector("#resultDocName");
-    if (sourceInput) sourceInput.value = doc.title || "Document Name";
-    if (resultSpan) resultSpan.textContent = `Draft - ${doc.title || "Document Name"}`;
-
-    for (const key of ["source", "result"]) {
-      const host = document.querySelector(`#${key}Editor`); this.editors[key]?.destroy(); host.innerHTML = "";
-      this.editors[key] = createEditor(host, doc[key], () => this.onEditorUpdate(key));
-    }
-    this.updateCounts(); this.toggleEmptyResult();
-  }
-  onEditorUpdate(key) { const doc = activeDocument(this.state); doc[key] = this.editors[key].getHTML(); doc.updatedAt = Date.now(); this.markDirty(); this.scheduleCountUpdate(); if (key === "result") this.toggleEmptyResult(); }
-  scheduleCountUpdate() {
-    if (this.countFrame) return;
-    this.countFrame = requestAnimationFrame(() => { this.countFrame = null; this.updateCounts(); });
-  }
-  markDirty() {
-    this.isDirty = true;
-    const el = document.querySelector("#saveState");
-    el.textContent = "Unsaved"; el.className = "save-state saving";
-    clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => { void this.saveNow(); }, 700);
-  }
-
-  async persistWorkspaceMeta() {
-    try {
-      await saveWorkspaceMeta(this.state);
-      this.workspaceConflict = false;
-    } catch (error) {
-      this.workspaceConflict = true;
-      this.toast(error.message || "Could not save workspace settings.", "error");
-    }
-  }
-
-  async persistActiveDocument() {
-    const doc = activeDocument(this.state);
-    if (!doc) return;
-    await saveDocument(this.state, doc.id);
-    this.isDirty = false;
-    this.workspaceConflict = false;
-  }
-
-  async saveNow() {
-    if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
-    try {
-      await this.persistActiveDocument();
-      const el = document.querySelector("#saveState");
-      el.textContent = `Saved · ${new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}`;
-      el.className = "save-state";
-      const usage = await getStorageUsage();
-      if (usage > 20_000_000 && !this.storageWarned) {
-        this.storageWarned = true;
-        this.toast("Workspace is getting large. IndexedDB has more capacity than the old storage, but consider archiving unused documents.", "error");
-      } else if (usage < 15_000_000) {
-        this.storageWarned = false;
-      }
-    } catch (error) {
-      this.isDirty = true;
-      const el = document.querySelector("#saveState");
-      el.textContent = error.message?.includes("another tab") ? "Conflict" : "Save failed";
-      el.className = "save-state error";
-      this.toast(error.message || "Could not save workspace.", "error");
-    }
-  }
-
-  async handleWorkspaceExternalChange() {
-    if (this.workspaceConflict) return;
-    if (this.isDirty) {
-      this.workspaceConflict = true;
-      const el = document.querySelector("#saveState");
-      el.textContent = "Changed in another tab";
-      el.className = "save-state error";
-      this.toast("This workspace changed in another tab. Save your current edits elsewhere before reloading.", "error");
-      return;
-    }
-    try {
-      const next = await reloadWorkspace();
-      this.state = next;
-      this.loadActiveDocument();
-      this.renderDocs();
-      this.setMode(this.state.mode);
-      this.customInstruction.value = this.state.customInstruction || "";
-      this.updateCustomPreview();
-      const el = document.querySelector("#saveState");
-      el.textContent = "Updated from another tab";
-      el.className = "save-state";
-    } catch (error) {
-      this.toast(error.message || "Could not refresh workspace changes.", "error");
-    }
-  }
   /* ── Summarize ───────────────────────────────── */
   async summarize() {
     if (this.ai.busy) return;
-    const sourcePackage = createSourcePackage(this.editors.source);
-    if (!sourcePackage) { this.toast("There is no source content to summarize.", "error"); return; }
-    // Move active doc to top of stack and highlight it
+    const sourceEditor = this.editors.source;
+    const resultEditor = this.editors.result;
     const doc = activeDocument(this.state);
+    if (!doc || !sourceEditor || !resultEditor) { this.toast("The active document is not ready.", "error"); return; }
+
+    const sourcePackage = createSourcePackage(sourceEditor);
+    if (!sourcePackage) { this.toast("There is no source content to summarize.", "error"); return; }
+
+    // Capture the document/editor instances at generation start. Document
+    // switching destroys and recreates editors; streaming callbacks must never
+    // follow the new active editor by accident.
+    const session = {
+      docId: doc.id,
+      sourceEditor,
+      resultEditor,
+      progressText: "",
+      renderTimer: null,
+      renderInFlight: false,
+    };
+    this.generationSession = session;
+    this.generatingDocId = doc.id;
+
+    // Keep the existing v0.8 recency behavior.
     const idx = this.state.documents.indexOf(doc);
     if (idx > 0) {
       this.state.documents.splice(idx, 1);
       this.state.documents.unshift(doc);
       await saveState(this.state);
     }
-    this.generatingDocId = doc.id;
     this.renderDocs();
-    const btn = document.querySelector("#summarizeBtn"); this.setGeneratingUI(true);
+    this.setGeneratingUI(true);
     document.querySelector("#generationMeta").textContent = sourcePackage.label;
-    this.startProgressiveResult();
+
+    const isSessionVisible = () => this.generationSession === session && this.state.activeId === session.docId && this.editors.result === session.resultEditor;
+    const queue = full => this.queueProgressiveResult(full, session);
+
     try {
       const result = await this.ai.run({
         mode: this.state.mode,
         custom: this.state.customInstruction,
         sourcePackage,
-        onToken: (delta, full) => this.queueProgressiveResult(full)
+        onToken: (delta, full) => queue(full)
       });
+
       if (result === null) {
-        document.querySelector("#generationMeta").textContent = "Cancelled";
-        // Save any partial content that was streamed before cancellation
-        this.onEditorUpdate("result");
+        if (isSessionVisible()) document.querySelector("#generationMeta").textContent = "Cancelled";
+        await this.commitGenerationResult(session, session.progressText, { partial: true });
         return;
       }
       if (!result) throw new Error("The AI returned an empty result.");
-      await this.flushProgressiveResult(result);
-      const html = await markdownToHtml(result);
-      this.editors.result.commands.setContent(html, { emitUpdate: false });
-      this.onEditorUpdate("result");
-      this.toggleEmptyResult();
-      document.querySelector("#generationMeta").textContent = `Generated · ${wordCount(result)} words`;
-      this.toast("Draft generated. Review and edit it before using it.", "success");
+
+      await this.flushProgressiveResult(result, session);
+      await this.commitGenerationResult(session, result, { partial: false });
+      if (isSessionVisible()) {
+        document.querySelector("#generationMeta").textContent = `Generated · ${wordCount(result)} words`;
+        this.toast("Draft generated. Review and edit it before using it.", "success");
+      }
     } catch (err) {
       const isCancelled = err?.name === "AbortError";
-      document.querySelector("#generationMeta").textContent = isCancelled ? "Cancelled" : "Generation failed";
-      
+      if (isSessionVisible()) document.querySelector("#generationMeta").textContent = isCancelled ? "Cancelled" : "Generation failed";
       const msg = err.message || "";
-      if (!isCancelled) {
+      if (!isCancelled && isSessionVisible()) {
         if (msg.includes("Download this model first")) {
-          this.showInstruction(
-            "Model Not Downloaded",
-            "This local AI model needs to be downloaded before it can be used. This usually only takes a few minutes.",
-            [
-              { text: "Download from Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
-            ]
-          );
+          this.showInstruction("Model Not Downloaded", "This local AI model needs to be downloaded before it can be used. This usually only takes a few minutes.", [
+            { text: "Download from Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
+          ]);
         } else if (msg.includes("API key is missing") || msg.includes("Gemini API key is missing")) {
           const isGemini = msg.includes("Gemini");
-          const links = [
-            { text: "Add API key in Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
-          ];
-          if (isGemini) {
-            links.push({ text: "Get Gemini API Key", href: "https://aistudio.google.com/app/apikey" });
-          } else {
-            links.push({ text: "Get OpenAI API Key", href: "https://platform.openai.com/api-keys" });
-          }
+          const links = [{ text: "Add API key in Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }];
+          if (isGemini) links.push({ text: "Get Gemini API Key", href: "https://aistudio.google.com/app/apikey" });
+          else links.push({ text: "Get OpenAI API Key", href: "https://platform.openai.com/api-keys" });
           this.showInstruction("API Key Required", "You must configure an API key to use this cloud model.", links);
-        } else {
-          this.toast(msg || "Generation failed.", "error");
-        }
+        } else this.toast(msg || "Generation failed.", "error");
       }
-      
-      // Save any partial content that was streamed before the error
-      this.onEditorUpdate("result");
+
+      if (session.progressText) await this.commitGenerationResult(session, session.progressText, { partial: true });
     } finally {
-      this.generatingDocId = null;
+      if (this.generationSession === session) {
+        this.generationSession = null;
+        this.generatingDocId = null;
+      }
       this.renderDocs();
-      this.stopProgressiveResult();
+      if (this.generationSession !== session) this.stopProgressiveResult(session);
       this.setGeneratingUI(false);
-      // Always persist source pane as well to ensure both sides are saved
-      this.onEditorUpdate("source");
     }
+  }
+
+  async commitGenerationResult(session, markdown, { partial = false } = {}) {
+    if (!markdown?.trim()) return;
+    const doc = this.state.documents.find(item => item.id === session.docId);
+    if (!doc) return;
+    const html = await markdownToHtml(markdown);
+    doc.result = html;
+    doc.updatedAt = Date.now();
+    const docIndex = this.state.documents.findIndex(item => item.id === doc.id);
+    if (docIndex > 0) {
+      this.state.documents.splice(docIndex, 1);
+      this.state.documents.unshift(doc);
+      if (this.generationSession === session) this.renderDocs();
+    }
+    if (this.state.activeId === session.docId && this.editors.result === session.resultEditor) {
+      session.resultEditor.commands.setContent(html, { emitUpdate: false });
+      this.toggleEmptyResult();
+    }
+    try { await saveDocument(this.state, session.docId); } catch (error) { this.toast(error.message || "Could not save generated draft.", "error"); }
   }
 
   /* ── Progressive result streaming ────────────── */
-  startProgressiveResult() {
-    this.progressRenderToken += 1;
-    this.progressRenderInFlight = false;
-    this.isDirty = false;
-    this.workspaceConflict = false;
-    this.workspaceUnsubscribe = null;
-    this.progressText = "";
-  }
-
-  queueProgressiveResult(full) {
-    this.progressText = full;
+  queueProgressiveResult(full, session = this.generationSession) {
+    if (!session || this.generationSession !== session) return;
+    session.progressText = full;
     const words = wordCount(full);
     const meta = document.querySelector("#generationMeta");
-    if (meta && !this.progressMetaFrame) {
-      this.progressMetaFrame = requestAnimationFrame(() => {
-        this.progressMetaFrame = null;
-        meta.textContent = `Generating · ${words} words`;
-      });
+    if (meta && this.state.activeId === session.docId) {
+      if (!this.progressMetaFrame) {
+        this.progressMetaFrame = requestAnimationFrame(() => {
+          this.progressMetaFrame = null;
+          if (this.generationSession === session && this.state.activeId === session.docId) meta.textContent = `Generating · ${words} words`;
+        });
+      }
     }
-    if (this.progressRenderTimer || this.progressRenderInFlight) return;
-    this.progressRenderTimer = setTimeout(() => {
-      this.progressRenderTimer = null;
-      void this.renderProgressiveResult();
+    if (session.renderTimer || session.renderInFlight || this.state.activeId !== session.docId || this.editors.result !== session.resultEditor) return;
+    session.renderTimer = setTimeout(() => {
+      session.renderTimer = null;
+      void this.renderProgressiveResult(session);
     }, 120);
   }
 
-  async renderProgressiveResult() {
-    if (!this.progressText || !this.editors.result) return;
-    this.progressRenderInFlight = true;
-    const text = this.progressText;
+  async renderProgressiveResult(session = this.generationSession) {
+    if (!session || this.generationSession !== session || !session.progressText) return;
+    if (this.state.activeId !== session.docId || this.editors.result !== session.resultEditor) return;
+    session.renderInFlight = true;
+    const text = session.progressText;
     try {
       const html = await markdownToHtml(text);
-      if (text === this.progressText && this.editors.result) {
-        this.editors.result.commands.setContent(html, { emitUpdate: false });
+      if (this.generationSession === session && this.state.activeId === session.docId && this.editors.result === session.resultEditor && text === session.progressText) {
+        session.resultEditor.commands.setContent(html, { emitUpdate: false });
         this.toggleEmptyResult();
       }
     } finally {
-      this.progressRenderInFlight = false;
-    this.isDirty = false;
-    this.workspaceConflict = false;
-    this.workspaceUnsubscribe = null;
-      if (this.progressText !== text && !this.progressRenderTimer) {
-        this.progressRenderTimer = setTimeout(() => {
-          this.progressRenderTimer = null;
-          void this.renderProgressiveResult();
-        }, 120);
+      session.renderInFlight = false;
+      if (session.progressText !== text && !session.renderTimer && this.generationSession === session && this.state.activeId === session.docId && this.editors.result === session.resultEditor) {
+        session.renderTimer = setTimeout(() => { session.renderTimer = null; void this.renderProgressiveResult(session); }, 120);
       }
     }
   }
 
-  async flushProgressiveResult(finalText) {
-    this.progressText = finalText;
-    if (this.progressRenderTimer) { clearTimeout(this.progressRenderTimer); this.progressRenderTimer = null; }
-    while (this.progressRenderInFlight) await new Promise(resolve => setTimeout(resolve, 16));
-    await this.renderProgressiveResult();
+  async flushProgressiveResult(finalText, session = this.generationSession) {
+    if (!session || this.generationSession !== session) return;
+    session.progressText = finalText;
+    if (session.renderTimer) { clearTimeout(session.renderTimer); session.renderTimer = null; }
+    while (session.renderInFlight) await new Promise(resolve => setTimeout(resolve, 16));
+    if (this.state.activeId === session.docId && this.editors.result === session.resultEditor) await this.renderProgressiveResult(session);
   }
 
-  stopProgressiveResult() {
-    if (this.progressRenderTimer) { clearTimeout(this.progressRenderTimer); this.progressRenderTimer = null; }
+  stopProgressiveResult(session = this.generationSession) {
+    if (!session) return;
+    if (session.renderTimer) { clearTimeout(session.renderTimer); session.renderTimer = null; }
     if (this.progressMetaFrame) { cancelAnimationFrame(this.progressMetaFrame); this.progressMetaFrame = null; }
-    this.progressText = "";
+    session.progressText = "";
+    session.renderInFlight = false;
+    if (this.generationSession === session) this.generationSession = null;
   }
 
   /* ── Actions ─────────────────────────────────── */
   action(action) {
     if (action === "copy-source") this.copyEditor(this.editors.source);
     if (action === "copy-result") this.copyEditor(this.editors.result);
-    if (action === "export-source") this.openExportDialog("source");
-    if (action === "export-result") this.openExportDialog("result");
+    if (action === "download-source") this.openExportDialog("source");
+    if (action === "download-draft") this.openExportDialog("result");
   }
   async copyEditor(editor) { try { const type = await copyRichText(editor); this.toast(type === "rich" ? "Copied rich text to clipboard" : "Copied plain text", "success"); } catch (err) { this.toast(err.message, "error"); } }
-  openExportDialog(paneId) {
-    const editor = this.editors[paneId];
-    if (!editor) { this.toast("This pane is not available.", "error"); return; }
-    try { assertEditorContent(editor); } catch (err) { this.toast(err.message, "error"); return; }
-    this.exportPaneId = paneId;
-    const doc = activeDocument(this.state);
-    const label = paneId === "source" ? "Source" : "Draft";
-    document.querySelector("#exportDialogTitle").textContent = `Export ${label}`;
-    document.querySelector("#exportDialogCopy").textContent = `Export the current ${label.toLowerCase()} editor content. Choose a format below.`;
-    document.querySelector("#exportProgress").classList.add("hidden");
-    if (!this.exportDialog.open) this.exportDialog.showModal();
-  }
-  async runExport(format) {
-    const paneId = this.exportPaneId;
-    const editor = paneId ? this.editors[paneId] : null;
-    if (!editor) return;
-    const progress = document.querySelector("#exportProgress");
-    const label = document.querySelector("#exportProgressLabel");
-    const bar = document.querySelector("#exportProgressBar");
-    try {
-      assertEditorContent(editor);
-      const doc = activeDocument(this.state);
-      const content = editor.getHTML();
-      progress.classList.remove("hidden");
-      label.textContent = format === "pdf" ? "Creating PDF…" : "Creating Word document…";
-      bar.style.width = "25%";
-      await exportDocument({ format, title: doc.title, content, editorElement: editor.view?.dom, suffix: paneId === "source" ? "Notes" : "Draft" });
-      bar.style.width = "100%";
-      if (this.exportDialog.open) this.exportDialog.close();
-      this.toast(`${format.toUpperCase()} exported successfully.`, "success");
-    } catch (err) {
-      progress.classList.add("hidden");
-      this.toast(err.message || "Export failed.", "error");
-    }
-  }
+  openExportDialog(paneId) { return this.exports.openExportDialog(paneId); }
+  async runExport(format) { return this.exports.runExport(format); }
 
-  updateCounts() { for (const key of ["source", "result"]) { const target = document.querySelector(`#${key}Meta`); if (target) target.textContent = `${wordCount(editorText(this.editors[key])).toLocaleString()} words`; } }
-  toggleEmptyResult() { document.querySelector("#emptyResult").classList.toggle("hidden", !!editorText(this.editors.result).trim()); }
+  updateCounts() { return this.documents.updateCounts(); }
+  toggleEmptyResult() { return this.documents.toggleEmptyResult(); }
 
-  /* ── Document list ───────────────────────────── */
-  renderDocs() {
-    const list = document.querySelector("#documentList"); list.replaceChildren();
-    for (const doc of this.state.documents) {
-      const row = document.createElement("div"); row.className = "doc-item-row";
-
-      // Document button
-      const btn = document.createElement("button");
-      let cls = "doc-item";
-      if (doc.id === this.state.activeId) cls += " active";
-      if (doc.id === this.generatingDocId) cls += " generating";
-      btn.className = cls;
-      const icon = document.createElement("span"); icon.className = "doc-icon"; icon.textContent = "▤";
-      const title = document.createElement("span"); title.className = "doc-item-title"; title.textContent = doc.title;
-      btn.append(icon, title);
-      btn.onclick = async () => { if (doc.id === this.state.activeId) return; await this.saveNow(); if (this.workspaceConflict) return; this.state.activeId = doc.id; await saveWorkspaceMeta(this.state); this.loadActiveDocument(); this.renderDocs(); };
-
-      // 3-dot menu button (visible on hover)
-      const menuBtn = document.createElement("button"); menuBtn.className = "doc-item-menu-btn"; menuBtn.textContent = "⋯"; menuBtn.title = "Document options";
-      const dropdown = document.createElement("div"); dropdown.className = "doc-item-dropdown";
-
-      // Rename option
-      const renameBtn = document.createElement("button"); renameBtn.textContent = "✎ Rename";
-      renameBtn.onclick = e => { e.stopPropagation(); dropdown.classList.remove("visible"); menuBtn.classList.remove("open"); this.renameDoc(doc); };
-
-      // Delete option
-      const delBtn = document.createElement("button"); delBtn.className = "danger-option"; delBtn.textContent = "✕ Delete";
-      delBtn.onclick = async e => { 
-        e.stopPropagation(); dropdown.classList.remove("visible"); menuBtn.classList.remove("open"); 
-        if (confirm(`Delete "${doc.title}"?`)) { 
-          try {
-            if (deleteDocument(this.state, doc.id)) { await saveState(this.state); this.isDirty = false; this.loadActiveDocument(); this.renderDocs(); this.toast("Document deleted", "success"); } else this.toast("Cannot delete the last document", "error"); 
-          } catch (err) {
-            this.toast(err.message || "Could not delete document.", "error");
-          }
-        } 
-      };
-
-      dropdown.append(renameBtn, delBtn);
-      menuBtn.onclick = e => {
-        e.stopPropagation();
-        // Close all other open menus first
-        document.querySelectorAll(".doc-item-dropdown.visible").forEach(m => { if (m !== dropdown) m.classList.remove("visible"); });
-        document.querySelectorAll(".doc-item-menu-btn.open").forEach(b => { if (b !== menuBtn) b.classList.remove("open"); });
-        const isOpen = dropdown.classList.toggle("visible");
-        menuBtn.classList.toggle("open", isOpen);
-      };
-
-      row.append(btn, menuBtn, dropdown); list.appendChild(row);
-    }
-  }
-
-  async renameDoc(doc) {
-    let newTitle = prompt("Rename document:", doc.title);
-    if (newTitle === null || !newTitle.trim()) return;
-    newTitle = newTitle.trim();
-    if (newTitle === doc.title) return;
-    
-    try {
-      newTitle = ensureUniqueTitle(this.state, newTitle, doc.id);
-      doc.title = newTitle;
-      doc.updatedAt = Date.now();
-      await saveDocument(this.state, doc.id);
-      this.isDirty = false;
-      this.renderDocs();
-      if (activeDocument(this.state).id === doc.id) {
-        const sourceInput = document.querySelector("#sourceDocName");
-        const resultSpan = document.querySelector("#resultDocName");
-        if (sourceInput) sourceInput.value = newTitle;
-        if (resultSpan) resultSpan.textContent = `Draft - ${newTitle}`;
-      }
-      this.toast("Document renamed.", "success");
-    } catch (err) {
-      this.toast(err.message || "Could not save renamed document.", "error");
-    }
-  }
-
-  async newDoc() { 
-    await this.saveNow();
-    if (this.workspaceConflict) return; 
-    try {
-      createDocument(this.state); 
-      await saveState(this.state);
-      this.isDirty = false;
-      this.loadActiveDocument(); 
-      this.renderDocs(); 
-      this.toast("New document created.", "success"); 
-    } catch (err) {
-      this.toast(err.message || "Could not create new document.", "error");
-    }
-  }
+  /* ── Document lifecycle / list ──────────────── */
+  renderDocs() { return this.documents.renderDocs(); }
+  async renameDoc(doc) { return this.documents.renameDoc(doc); }
+  async newDoc() { return this.documents.newDoc(); }
 
   /* ── Layout ──────────────────────────────────── */
   toggleSidebar() {
@@ -974,5 +611,49 @@ export class AppUI {
     
     dialog.showModal();
   }
-  toast(message, type = "") { const el = document.createElement("div"); el.className = `toast ${type}`; el.textContent = message; this.toastRegion.appendChild(el); setTimeout(() => el.remove(), 4200); }
+  clearModalError(dialog = null) {
+    const target = dialog || document.querySelector("dialog[open]");
+    if (!target) return;
+    const el = target.querySelector(".modal-error");
+    if (el) { el.textContent = ""; el.classList.add("hidden"); }
+  }
+
+  showModalError(message, dialog = null) {
+    const target = dialog || document.querySelector("dialog[open]");
+    if (!target) return false;
+    let el = target.querySelector(".modal-error");
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "modal-error";
+      el.setAttribute("role", "alert");
+      target.querySelector("form")?.prepend(el);
+    }
+    el.textContent = String(message || "Something went wrong.");
+    el.classList.remove("hidden");
+    return true;
+  }
+
+  showExportStatus(visible, text = "", percent = 0, autoHide = false) {
+    const box = document.querySelector("#exportStatus");
+    const label = document.querySelector("#exportStatusLabel");
+    const pct = document.querySelector("#exportStatusPercent");
+    const bar = document.querySelector("#exportStatusBar");
+    if (!box) return;
+    if (!visible) { box.hidden = true; return; }
+    box.hidden = false;
+    if (label) label.textContent = text || "Exporting…";
+    const value = Math.max(0, Math.min(100, Number(percent) || 0));
+    if (pct) pct.textContent = `${Math.round(value)}%`;
+    if (bar) bar.style.width = `${value}%`;
+    if (autoHide) setTimeout(() => { box.hidden = true; }, 2200);
+  }
+
+  toast(message, type = "") {
+    if (type === "error" && document.querySelector("dialog[open]") && this.showModalError(message)) return;
+    const el = document.createElement("div");
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    this.toastRegion.appendChild(el);
+    setTimeout(() => el.remove(), 4200);
+  }
 }

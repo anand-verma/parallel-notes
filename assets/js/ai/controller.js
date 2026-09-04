@@ -20,6 +20,9 @@ export class AIController {
     this.ui.setAIStatus("Detecting models…", "loading");
     let localModels = [];
     if (isWebGPUSupported()) {
+      // Keep the v0.8 discovery workflow: WebGPU exposure is enough to list
+      // local models. Actual adapter compatibility is checked at load time so
+      // a transient adapter/driver issue does not permanently hide local AI.
       const config = await (await import("./providers/webllm.js")).loadWebLLM();
       this.webllmConfig = config.prebuiltAppConfig;
       const enabledIds = this.settings.enabledLocalModels;

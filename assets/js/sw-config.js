@@ -1,5 +1,5 @@
 /** Service Worker configuration and caching strategies. */
-const SW_APP_VERSION = "0.8.0";
+const SW_APP_VERSION = "0.9.4";
 const SW_SHELL_CACHE = `pns-shell-v${SW_APP_VERSION}`;
 const SW_SHELL = [
   "./",
@@ -16,6 +16,10 @@ const SW_SHELL = [
   "./assets/js/ui.js",
   "./assets/js/ui/ai-ui.js",
   "./assets/js/ui/settings-ui.js",
+  "./assets/js/ui/document-controller.js",
+  "./assets/js/ui/editor-controller.js",
+  "./assets/js/ui/import-controller.js",
+  "./assets/js/ui/export-controller.js",
   "./assets/js/ai/controller.js",
   "./assets/js/ai/ai-service.js",
   "./assets/js/ai/prompts.js",

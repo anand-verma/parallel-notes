@@ -78,7 +78,13 @@ function metaFromState(state, revision = state.revision || 0) {
 }
 
 function stateFromRecords(meta, documents) {
-  return normalizeState({ ...meta, documents, revision: meta?.revision || 0 });
+  // IndexedDB object-store getAll() is key-ordered, not UI-order ordered.
+  // The application convention is recency order: newest modified document first.
+  const ordered = [...documents].sort((a, b) => {
+    const delta = Number(b?.updatedAt || 0) - Number(a?.updatedAt || 0);
+    return delta || String(a?.id || "").localeCompare(String(b?.id || ""));
+  });
+  return normalizeState({ ...meta, documents: ordered, revision: meta?.revision || 0 });
 }
 
 async function getAllRecords() {

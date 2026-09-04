@@ -11,6 +11,21 @@ let activeGeneration = false;
 
 export function isWebGPUSupported() { return !!navigator.gpu; }
 
+export async function getWebGPUStatus() {
+  if (!navigator.gpu) return { supported: false, adapter: null, reason: "WebGPU is not exposed by this browser." };
+  try {
+    // Prefer the browser's default compatible adapter. This is deliberately
+    // less restrictive than forcing a discrete/high-performance GPU.
+    const adapter = await navigator.gpu.requestAdapter();
+    if (adapter) return { supported: true, adapter, powerPreference: "default" };
+  } catch {}
+  try {
+    const preferred = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+    if (preferred) return { supported: true, adapter: preferred, powerPreference: "high-performance" };
+  } catch {}
+  return { supported: false, adapter: null, reason: "WebGPU is exposed, but the browser could not obtain a compatible GPU adapter." };
+}
+
 export async function loadWebLLM() {
   if (!modPromise) modPromise = import(`https://esm.run/@mlc-ai/web-llm@${WEBLLM_VERSION}`);
   return modPromise;
@@ -131,6 +146,9 @@ export async function loadModel(modelId, onProgress) {
     };
     let createdEngine = null;
     try {
+      // Keep the v0.8 WebLLM initialization path. WebLLM itself selects the
+      // compatible adapter; an extra requestAdapter preflight can reject GPU
+      // configurations that WebLLM was able to initialize successfully.
       createdEngine = await mod.CreateMLCEngine(modelId, {
         appConfig: mod.prebuiltAppConfig,
         initProgressCallback: progress,
@@ -145,7 +163,7 @@ export async function loadModel(modelId, onProgress) {
       }
       engine = null;
       activeModel = null;
-      throw new Error(`Model "${modelId}" failed to load: ${error?.message || String(error)}`);
+      throw new Error(`Model "${modelId}" failed to load: ${error?.message || String(error)}. If WebGPU worked previously, fully reload the page after this update and verify the browser is using the same GPU/driver profile.`);
     }
   })();
 
