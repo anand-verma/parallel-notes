@@ -13,6 +13,7 @@ export class AIController {
     this.abortController = null;
     this.service = new AIService({ settings });
     this.webllmConfig = null;
+    this.operationDone = Promise.resolve();
   }
 
   async init() {
@@ -103,10 +104,30 @@ export class AIController {
     }
   }
 
-  async runRaw({ system, user, onProgress, signal, modelId = null }) {
+  _beginOperation() {
     if (this.busy) throw new Error("An AI operation is already running.");
     this.busy = true;
     this.abortController = new AbortController();
+    let resolveDone;
+    this.operationDone = new Promise(resolve => { resolveDone = resolve; });
+    return resolveDone;
+  }
+
+  _operationSignal(externalSignal) {
+    if (!externalSignal) return this.abortController.signal;
+    if (typeof AbortSignal?.any === "function") return AbortSignal.any([this.abortController.signal, externalSignal]);
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (this.abortController.signal.aborted || externalSignal.aborted) controller.abort();
+    else {
+      this.abortController.signal.addEventListener("abort", abort, { once: true });
+      externalSignal.addEventListener("abort", abort, { once: true });
+    }
+    return controller.signal;
+  }
+
+  async runRaw({ system, user, onProgress, signal, modelId = null }) {
+    const resolveDone = this._beginOperation();
     try {
       const model = modelId ? this.models.find(m => m.id === modelId) : this.getModelDef();
       if (!model) throw new Error("Choose an AI model first.");
@@ -120,19 +141,18 @@ export class AIController {
         model,
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         onProgress,
-        signal: signal || this.abortController.signal
+        signal: this._operationSignal(signal)
       });
     } finally {
       this.busy = false;
       this.abortController = null;
+      resolveDone();
       this.ui.setAIStatus("AI ready", "ready");
     }
   }
 
   async run(args) {
-    if (this.busy) throw new Error("A generation is already running.");
-    this.busy = true;
-    this.abortController = new AbortController();
+    const resolveDone = this._beginOperation();
     try {
       const model = this.getModelDef();
       if (!model) throw new Error("Choose an AI model first.");
@@ -141,32 +161,35 @@ export class AIController {
         if (!model.isCached) {
           throw new Error("Download this model first using the ⬇ button in the model selector.");
         }
-        // Cached but not loaded into WASM memory — auto-load silently
         this.ui.setAIStatus("Loading local model…", "loading");
         await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text));
       }
       this.ui.setAIStatus("Generating…", "loading");
-      const result = await this.service.generate({ ...args, model, onProgress: (p, t) => this.ui.updateModelProgress(p, t), signal: this.abortController.signal });
+      const result = await this.service.generate({
+        ...args,
+        model,
+        onProgress: (p, t) => this.ui.updateModelProgress(p, t),
+        signal: this.abortController.signal
+      });
       this.ui.setAIStatus(`${model.type === "local" ? "Local" : "Cloud"} · ${AIService.label(args.mode)}`, "ready");
       return result;
     } catch (err) {
-      // Reset AI status chip on failure so it doesn't stay stuck on "Generating…"
-      if (err?.name === "AbortError") {
-        this.ui.setAIStatus("AI ready", "ready");
-      } else {
-        this.ui.setAIStatus("Generation failed", "error");
-      }
+      if (err?.name === "AbortError") this.ui.setAIStatus("AI ready", "ready");
+      else this.ui.setAIStatus("Generation failed", "error");
       throw err;
     } finally {
       this.busy = false;
       this.abortController = null;
+      resolveDone();
     }
   }
 
-  cancelGeneration() {
+  async cancelGeneration() {
     if (!this.busy) return false;
+    const done = this.operationDone;
     this.abortController?.abort();
-    void this.service.cancelLocalGeneration();
+    await this.service.cancelLocalGeneration();
+    await done;
     return true;
   }
   updateSettings(settings) { this.settings = settings; this.service.updateSettings(settings); }

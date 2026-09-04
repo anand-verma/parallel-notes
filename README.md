@@ -4,6 +4,14 @@
 
 **Parallel Notes** is a privacy-first, browser-based study and revision workspace that turns long parent/source notes into concise, editable revision notes while keeping the original material intact.
 
+## 🔧 v0.7.1 Hardening
+
+- **WebLLM lifecycle:** Switching local models explicitly unloads the previous engine before loading the next one, preventing avoidable GPU/WASM resource retention.
+- **Safe cache clearing:** Local model caches are cleared only after active local generation has fully terminated; the previous fixed timeout race has been removed.
+- **Generation cancellation:** AI operations now expose an awaitable completion lifecycle so destructive cache actions cannot race an in-flight stream.
+- **Credential ownership:** Custom-model credentials are managed through the credential storage module, including reliable cleanup when a custom model is removed.
+- **Cache-busting:** Application and service-worker shell versions are bumped to `0.7.1`.
+
 ## ✨ Features
 
 - **Two-Pane Workflow:** Parent Notes → Summary Notes.

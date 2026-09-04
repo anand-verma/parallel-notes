@@ -598,7 +598,7 @@ button{cursor:pointer}
 .import-ai-model small{font-size:10px;color:var(--muted);line-height:1.45}
 .import-ai-model.hidden{display:none}
 
-/* ── v0.7.0 Export format picker ───────────────── */
+/* ── v0.7.1 Export format picker ───────────────── */
 .export-format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 6px}
 .export-format-btn{display:flex;align-items:center;gap:11px;text-align:left;padding:13px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-2);color:var(--text);cursor:pointer;transition:.14s ease}
 .export-format-btn:hover{border-color:var(--accent);background:var(--surface-3);transform:translateY(-1px)}

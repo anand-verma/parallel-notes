@@ -45,7 +45,7 @@ export class SettingsUI {
     this._renderLocalModelCards();
     this._renderGeminiModels();
     this._renderOpenaiModels();
-    renderCustomModels($("#customModelList"), this.settings.customApiModels || [], id => this.removeCustomModel(id));
+    renderCustomModels($("#customModelList"), this.settings.customApiModels || [], model => this.removeCustomModel(model));
 
     // Data tab
     renderCacheList($("#localModelCacheList"), this.ui.ai.models.filter(m => m.type === "local"));
@@ -278,22 +278,20 @@ export class SettingsUI {
     this.ui.persistSettings();
     this.ui.ai.rebuildRegistry();
     this.ui.renderModelPicker(this.ui.ai.models, this.ui.ai.selectedModel);
-    renderCustomModels($("#customModelList"), this.settings.customApiModels, x => this.removeCustomModel(x));
+    renderCustomModels($("#customModelList"), this.settings.customApiModels, model => this.removeCustomModel(model));
     $("#customApiLabel").value = $("#customApiModelId").value = $("#customApiBaseUrl").value = $("#customApiKey").value = "";
   }
 
-  removeCustomModel(id) {
-    this.settings.customApiModels = (this.settings.customApiModels || []).filter(m => m.id !== id);
-    // Clean up credential
-    const model = this.settings.customApiModels.find(m => m.id === id);
-    if (model?.credentialId) {
-      delete this.settings.customCredentials?.[model.credentialId];
-      sessionStorage.removeItem(`pns.session.${model.credentialId}`);
-    }
+  removeCustomModel(modelOrId) {
+    const model = typeof modelOrId === "object" ? modelOrId : (this.settings.customApiModels || []).find(m => m.id === modelOrId);
+    const targetCredentialId = model?.credentialId;
+    this.settings.customApiModels = (this.settings.customApiModels || []).filter(m => targetCredentialId ? m.credentialId !== targetCredentialId : m.id !== modelOrId);
+    // Clean up the credential before persisting the updated settings.
+    if (model?.credentialId) this.ui.removeCustomCredential(model.credentialId);
     this.ui.persistSettings();
     this.ui.ai.rebuildRegistry();
     this.ui.renderModelPicker(this.ui.ai.models, this.ui.ai.selectedModel);
-    renderCustomModels(document.querySelector("#customModelList"), this.settings.customApiModels, x => this.removeCustomModel(x));
+    renderCustomModels(document.querySelector("#customModelList"), this.settings.customApiModels, model => this.removeCustomModel(model));
   }
 
   /* ── Data tab actions ────────────────────────── */

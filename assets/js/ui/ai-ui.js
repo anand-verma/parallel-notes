@@ -201,7 +201,7 @@ export function renderApiModelList(container, models, provider, { onRemove }) {
       btn.className = "remove-btn";
       btn.title = "Remove model";
       btn.textContent = "✕";
-      btn.addEventListener("click", () => onRemove(model.id));
+      btn.addEventListener("click", () => onRemove(model));
       row.appendChild(btn);
     }
 
@@ -228,7 +228,7 @@ export function renderCustomModels(container, models, onRemove) {
     const meta = document.createElement("span"); meta.style.color = "var(--muted-2)"; meta.textContent = ` (${model.protocol})`;
     text.appendChild(meta);
     const btn = document.createElement("button"); btn.type = "button"; btn.className = "icon-btn"; btn.textContent = "×"; btn.title = "Remove";
-    btn.addEventListener("click", () => onRemove(model.id));
+    btn.addEventListener("click", () => onRemove(model));
     row.append(text, btn); container.appendChild(row);
   }
 }

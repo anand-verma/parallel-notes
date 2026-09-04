@@ -7,7 +7,7 @@ import { markdownToHtml } from "./services/markdown.js";
 import { copyRichText } from "./services/clipboard.js";
 import { exportDocument } from "./services/export.js";
 import { ImportService } from "./services/import/import-service.js";
-import { getCredential, setCredential } from "./storage/credentials.js";
+import { getCredential, setCredential, setCustomCredential as setStoredCustomCredential, removeCustomCredential as removeStoredCustomCredential } from "./storage/credentials.js";
 import { clearAllModelCaches } from "./ai/providers/webllm.js";
 import { SettingsUI } from "./ui/settings-ui.js";
 import { renderModelPickerMenu, updatePickerTrigger, renderCacheList } from "./ui/ai-ui.js";
@@ -185,17 +185,14 @@ export class AppUI {
 
   setCredential(provider, value, remember) { setCredential(provider, value, { persist: remember, settings: this.settings }); }
   setCustomCredential(id, value, remember) {
-    this.settings.customCredentials ||= {};
-    sessionStorage.removeItem(`pns.session.${id}`);
-    if (remember) this.settings.customCredentials[id] = value;
-    else {
-      delete this.settings.customCredentials[id];
-      if (value) sessionStorage.setItem(`pns.session.${id}`, value);
-    }
+    setStoredCustomCredential(id, value, { persist: remember, settings: this.settings });
+  }
+
+  removeCustomCredential(id) {
+    removeStoredCustomCredential(id, this.settings);
   }
   getCredential(provider, model) {
-    if (model?.credentialId) return this.settings.customCredentials?.[model.credentialId] || sessionStorage.getItem(`pns.session.${model.credentialId}`) || "";
-    return getCredential(provider, this.settings);
+    return getCredential(provider, this.settings, model);
   }
   persistSettings() { this.settings = saveSettings(this.settings); this.settingsUI.updateSettings(this.settings); this.ai.updateSettings(this.settings); }
 
@@ -239,9 +236,8 @@ export class AppUI {
     if (!confirm("Delete all downloaded local model files? They will need to be downloaded again.")) return;
     try {
       if (this.ai.busy) {
-        this.stopGeneration();
-        const started = Date.now();
-        while (this.ai.busy && Date.now() - started < 3000) await new Promise(resolve => setTimeout(resolve, 40));
+        this.setAIStatus("Stopping…", "loading");
+        await this.ai.cancelGeneration();
       }
       const count = await clearAllModelCaches(this.ai.models.filter(m => m.type === "local").map(m => m.id));
       await this.ai.refreshCacheStatus();
