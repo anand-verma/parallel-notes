@@ -4,13 +4,23 @@
 
 **Parallel Notes** is a privacy-first, browser-based study and revision workspace that turns long parent/source notes into concise, editable revision notes while keeping the original material intact.
 
+## 🚀 v0.8.0 Storage & State Architecture
+
+- **IndexedDB workspace:** Documents are persisted individually in IndexedDB instead of one synchronous localStorage workspace blob.
+- **Legacy migration:** Existing `pns.workspace.v2` / `v1` localStorage workspaces are migrated automatically on first launch.
+- **Document-level autosave:** Editor autosaves write only the active document plus workspace metadata.
+- **Multi-tab coordination:** `BroadcastChannel` propagates workspace changes between tabs.
+- **Revision conflict protection:** Stale tabs are prevented from silently overwriting newer workspace revisions.
+- **Async bootstrap:** Application startup now hydrates the workspace asynchronously before creating the UI.
+- **Storage hardening:** Master reset removes the IndexedDB workspace database as well as browser storage.
+
 ## 🔧 v0.7.1 Hardening
 
 - **WebLLM lifecycle:** Switching local models explicitly unloads the previous engine before loading the next one, preventing avoidable GPU/WASM resource retention.
 - **Safe cache clearing:** Local model caches are cleared only after active local generation has fully terminated; the previous fixed timeout race has been removed.
 - **Generation cancellation:** AI operations now expose an awaitable completion lifecycle so destructive cache actions cannot race an in-flight stream.
 - **Credential ownership:** Custom-model credentials are managed through the credential storage module, including reliable cleanup when a custom model is removed.
-- **Cache-busting:** Application and service-worker shell versions are bumped to `0.7.1`.
+- **Cache-busting:** Application and service-worker shell versions are bumped to `0.8.0`.
 
 ## ✨ Features
 
@@ -27,7 +37,7 @@
   - **Local WebLLM Inference:** Lightweight curated local models (e.g., `Qwen2.5-1.5B-Instruct-q4f16_1-MLC`, `Llama-3.2-1B-Instruct-q4f16_1-MLC`, `Llama-3.2-1B-Instruct-q4f32_1-MLC`).
   - **Cloud APIs:** Gemini and OpenAI-compatible cloud APIs.
   - **Custom Endpoints:** Connect to your own OpenAI-compatible API endpoint.
-- **Local Persistence:** Workspace documents and settings are stored locally in the browser.
+- **Local Persistence:** Workspace documents are stored individually in IndexedDB; settings remain local to the browser. Existing v0.7 workspaces migrate automatically.
 - **Document Management:** Create, rename, delete, and manage active documents. Generating documents are highlighted and promoted to the top of the list.
 - **Export Capabilities:** Export and clipboard support for easy sharing.
 - **Static Architecture:** GitHub Pages/static-hosting friendly. No Node.js runtime or backend server required.

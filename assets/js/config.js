@@ -1,5 +1,5 @@
 /** Global configuration constants and default settings. */
-export const APP_VERSION = "0.7.1";
+export const APP_VERSION = "0.8.0";
 export const SHELL_CACHE = `pns-shell-v${APP_VERSION}`;
 export const WEBLLM_VERSION = "0.2.84";
 
@@ -26,5 +26,5 @@ export const PROVIDER_LABELS = {
 };
 
 export const MODELS_STORAGE_VERSION = 1;
-export const WORKSPACE_STORAGE_VERSION = 2;
+export const WORKSPACE_STORAGE_VERSION = 3;
 export const SETTINGS_STORAGE_VERSION = 3;

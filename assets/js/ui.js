@@ -1,5 +1,5 @@
 /** Core AppUI class handling layout, pane management, and interactions. */
-import { saveState, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, ensureUniqueTitle } from "./state.js";
+import { saveState, saveDocument, saveWorkspaceMeta, activeDocument, createDocument, deleteDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, ensureUniqueTitle, subscribeWorkspaceChanges, reloadWorkspace } from "./state.js";
 import { createEditor, editorText, wordCount } from "./editor.js";
 import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
@@ -40,9 +40,12 @@ export class AppUI {
     this.progressRenderTimer = null;
     this.progressRenderToken = 0;
     this.progressRenderInFlight = false;
+    this.isDirty = false;
+    this.workspaceConflict = false;
+    this.workspaceUnsubscribe = null;
   }
 
-  init() {
+  async init() {
     this.bind();
     this.restoreTheme();
     this.renderDocs();
@@ -52,7 +55,8 @@ export class AppUI {
     this.customInstruction = document.querySelector("#customInstruction");
     this.customInstruction.value = this.state.customInstruction || "";
     this.updateCustomPreview();
-    this.initAI();
+    this.workspaceUnsubscribe = subscribeWorkspaceChanges(event => { void this.handleWorkspaceExternalChange(event); });
+    await this.initAI();
     
     if (window.innerWidth <= 700) {
       this.sidebar.classList.add("collapsed");
@@ -120,7 +124,7 @@ export class AppUI {
     $("#sidebarToggleBtn").onclick = () => this.toggleSidebar();
     $("#maxSourceBtn").onclick = e => this.toggleMaximizePane("sourcePane", e.currentTarget);
     $("#maxResultBtn").onclick = e => this.toggleMaximizePane("resultPane", e.currentTarget);
-    $("#modeSelect").onchange = e => { this.state.mode = e.target.value; saveState(this.state); this.updateCustomPreview(); };
+    $("#modeSelect").onchange = e => { this.state.mode = e.target.value; void this.persistWorkspaceMeta(); this.updateCustomPreview(); };
 
     // Model picker toggle
     $("#modelPickerBtn").onclick = () => this.toggleModelPicker();
@@ -131,7 +135,7 @@ export class AppUI {
 
     $("#customPromptBtn").onclick = () => this.openCustomDialog();
     $("#editCustomBtn").onclick = () => this.openCustomDialog();
-    $("#customForm").onsubmit = e => { e.preventDefault(); this.state.customInstruction = this.customInstruction.value.trim(); saveState(this.state); this.updateCustomPreview(); this.customDialog.close(); this.toast("Custom instruction applied.", "success"); };
+    $("#customForm").onsubmit = e => { e.preventDefault(); this.state.customInstruction = this.customInstruction.value.trim(); void this.persistWorkspaceMeta(); this.updateCustomPreview(); this.customDialog.close(); this.toast("Custom instruction applied.", "success"); };
     $("#loadModelBtn").onclick = async () => { try { await this.ai.loadSelectedModel(); this.resolveModelLoad(true); } catch (err) { this.resolveModelLoad(false); this.toast(err.message, "error"); } };
     this.modelDialog.addEventListener("close", () => { if (this.modelDialog.returnValue !== "load") this.resolveModelLoad(false); });
     $("#summarizeBtn").onclick = () => this.ai.busy ? this.stopGeneration() : this.summarize();
@@ -151,7 +155,7 @@ export class AppUI {
             newTitle = ensureUniqueTitle(this.state, newTitle, doc.id);
             doc.title = newTitle;
             doc.updatedAt = Date.now();
-            saveState(this.state);
+            void this.persistActiveDocument();
             this.renderDocs();
           }
           sourceNameInput.value = newTitle;
@@ -248,11 +252,13 @@ export class AppUI {
     }
   }
 
-  clearWorkspaceDocuments() {
+  async clearWorkspaceDocuments() {
     try {
-      if (this.ai.busy) this.stopGeneration();
+      if (this.ai.busy) await this.ai.cancelGeneration();
       this.stopProgressiveResult();
-      this.state = clearWorkspaceStorage();
+      this.state = await clearWorkspaceStorage();
+      this.isDirty = false;
+      this.workspaceConflict = false;
       if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
       this.loadActiveDocument();
       this.renderDocs();
@@ -464,12 +470,13 @@ export class AppUI {
       const result = await ImportService.import(file, { mode, ai: mode === "enhanced" ? this.ai : null, modelId: mode === "enhanced" ? importModelId : null, signal: controller.signal, onProgress: setProgress });
       if (controller.signal.aborted) throw new DOMException("Import cancelled", "AbortError");
       bar.style.width = "100%"; pct.textContent = "100%"; label.textContent = "Creating document…";
-      this.saveNow();
+      await this.saveNow();
       const doc = createDocument(this.state, result.title);
       doc.source = result.html || "<p></p>";
       doc.result = "<p></p>";
       doc.updatedAt = Date.now();
-      saveState(this.state);
+      await saveState(this.state);
+      this.isDirty = false;
       this.loadActiveDocument();
       this.renderDocs();
       this.importController = null;
@@ -511,30 +518,80 @@ export class AppUI {
     if (this.countFrame) return;
     this.countFrame = requestAnimationFrame(() => { this.countFrame = null; this.updateCounts(); });
   }
-  markDirty() { const el = document.querySelector("#saveState"); el.textContent = "Unsaved"; el.className = "save-state saving"; clearTimeout(this.saveTimer); this.saveTimer = setTimeout(() => this.saveNow(), 700); }
-  saveNow() {
+  markDirty() {
+    this.isDirty = true;
+    const el = document.querySelector("#saveState");
+    el.textContent = "Unsaved"; el.className = "save-state saving";
+    clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => { void this.saveNow(); }, 700);
+  }
+
+  async persistWorkspaceMeta() {
+    try {
+      await saveWorkspaceMeta(this.state);
+      this.workspaceConflict = false;
+    } catch (error) {
+      this.workspaceConflict = true;
+      this.toast(error.message || "Could not save workspace settings.", "error");
+    }
+  }
+
+  async persistActiveDocument() {
+    const doc = activeDocument(this.state);
+    if (!doc) return;
+    await saveDocument(this.state, doc.id);
+    this.isDirty = false;
+    this.workspaceConflict = false;
+  }
+
+  async saveNow() {
     if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
     try {
-      saveState(this.state);
+      await this.persistActiveDocument();
       const el = document.querySelector("#saveState");
       el.textContent = `Saved · ${new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}`;
       el.className = "save-state";
-      
-      const usage = getStorageUsage();
-      if (usage > 4000000 && !this.storageWarned) {
+      const usage = await getStorageUsage();
+      if (usage > 20_000_000 && !this.storageWarned) {
         this.storageWarned = true;
-        this.toast("Storage is nearly full (over 4MB). Delete old documents to prevent data loss.", "error");
-      } else if (usage < 3500000) {
+        this.toast("Workspace is getting large. IndexedDB has more capacity than the old storage, but consider archiving unused documents.", "error");
+      } else if (usage < 15_000_000) {
         this.storageWarned = false;
       }
     } catch (error) {
+      this.isDirty = true;
       const el = document.querySelector("#saveState");
-      el.textContent = "Storage full";
+      el.textContent = error.message?.includes("another tab") ? "Conflict" : "Save failed";
       el.className = "save-state error";
       this.toast(error.message || "Could not save workspace.", "error");
     }
   }
 
+  async handleWorkspaceExternalChange() {
+    if (this.workspaceConflict) return;
+    if (this.isDirty) {
+      this.workspaceConflict = true;
+      const el = document.querySelector("#saveState");
+      el.textContent = "Changed in another tab";
+      el.className = "save-state error";
+      this.toast("This workspace changed in another tab. Save your current edits elsewhere before reloading.", "error");
+      return;
+    }
+    try {
+      const next = await reloadWorkspace();
+      this.state = next;
+      this.loadActiveDocument();
+      this.renderDocs();
+      this.setMode(this.state.mode);
+      this.customInstruction.value = this.state.customInstruction || "";
+      this.updateCustomPreview();
+      const el = document.querySelector("#saveState");
+      el.textContent = "Updated from another tab";
+      el.className = "save-state";
+    } catch (error) {
+      this.toast(error.message || "Could not refresh workspace changes.", "error");
+    }
+  }
   /* ── Summarize ───────────────────────────────── */
   async summarize() {
     if (this.ai.busy) return;
@@ -546,7 +603,7 @@ export class AppUI {
     if (idx > 0) {
       this.state.documents.splice(idx, 1);
       this.state.documents.unshift(doc);
-      saveState(this.state);
+      await saveState(this.state);
     }
     this.generatingDocId = doc.id;
     this.renderDocs();
@@ -620,6 +677,9 @@ export class AppUI {
   startProgressiveResult() {
     this.progressRenderToken += 1;
     this.progressRenderInFlight = false;
+    this.isDirty = false;
+    this.workspaceConflict = false;
+    this.workspaceUnsubscribe = null;
     this.progressText = "";
   }
 
@@ -652,6 +712,9 @@ export class AppUI {
       }
     } finally {
       this.progressRenderInFlight = false;
+    this.isDirty = false;
+    this.workspaceConflict = false;
+    this.workspaceUnsubscribe = null;
       if (this.progressText !== text && !this.progressRenderTimer) {
         this.progressRenderTimer = setTimeout(() => {
           this.progressRenderTimer = null;
@@ -736,7 +799,7 @@ export class AppUI {
       const icon = document.createElement("span"); icon.className = "doc-icon"; icon.textContent = "▤";
       const title = document.createElement("span"); title.className = "doc-item-title"; title.textContent = doc.title;
       btn.append(icon, title);
-      btn.onclick = () => { if (doc.id === this.state.activeId) return; this.saveNow(); this.state.activeId = doc.id; saveState(this.state); this.loadActiveDocument(); this.renderDocs(); };
+      btn.onclick = async () => { if (doc.id === this.state.activeId) return; await this.saveNow(); if (this.workspaceConflict) return; this.state.activeId = doc.id; await saveWorkspaceMeta(this.state); this.loadActiveDocument(); this.renderDocs(); };
 
       // 3-dot menu button (visible on hover)
       const menuBtn = document.createElement("button"); menuBtn.className = "doc-item-menu-btn"; menuBtn.textContent = "⋯"; menuBtn.title = "Document options";
@@ -748,11 +811,11 @@ export class AppUI {
 
       // Delete option
       const delBtn = document.createElement("button"); delBtn.className = "danger-option"; delBtn.textContent = "✕ Delete";
-      delBtn.onclick = e => { 
+      delBtn.onclick = async e => { 
         e.stopPropagation(); dropdown.classList.remove("visible"); menuBtn.classList.remove("open"); 
         if (confirm(`Delete "${doc.title}"?`)) { 
           try {
-            if (deleteDocument(this.state, doc.id)) { this.loadActiveDocument(); this.renderDocs(); this.toast("Document deleted", "success"); } else this.toast("Cannot delete the last document", "error"); 
+            if (deleteDocument(this.state, doc.id)) { await saveState(this.state); this.isDirty = false; this.loadActiveDocument(); this.renderDocs(); this.toast("Document deleted", "success"); } else this.toast("Cannot delete the last document", "error"); 
           } catch (err) {
             this.toast(err.message || "Could not delete document.", "error");
           }
@@ -773,7 +836,7 @@ export class AppUI {
     }
   }
 
-  renameDoc(doc) {
+  async renameDoc(doc) {
     let newTitle = prompt("Rename document:", doc.title);
     if (newTitle === null || !newTitle.trim()) return;
     newTitle = newTitle.trim();
@@ -783,7 +846,8 @@ export class AppUI {
       newTitle = ensureUniqueTitle(this.state, newTitle, doc.id);
       doc.title = newTitle;
       doc.updatedAt = Date.now();
-      saveState(this.state);
+      await saveDocument(this.state, doc.id);
+      this.isDirty = false;
       this.renderDocs();
       if (activeDocument(this.state).id === doc.id) {
         const sourceInput = document.querySelector("#sourceDocName");
@@ -797,10 +861,13 @@ export class AppUI {
     }
   }
 
-  newDoc() { 
-    this.saveNow(); 
+  async newDoc() { 
+    await this.saveNow();
+    if (this.workspaceConflict) return; 
     try {
       createDocument(this.state); 
+      await saveState(this.state);
+      this.isDirty = false;
       this.loadActiveDocument(); 
       this.renderDocs(); 
       this.toast("New document created.", "success"); 
@@ -870,7 +937,7 @@ export class AppUI {
     splitter.addEventListener("pointerup", () => {
       dragging = false;
       document.body.style.cursor = "";
-      saveState(this.state);
+      void this.persistWorkspaceMeta();
     });
   }
   toggleTheme() { const root = document.documentElement; const next = root.dataset.theme === "dark" ? "light" : "dark"; root.dataset.theme = next; localStorage.setItem("pns.theme", next); }

@@ -1,6 +1,6 @@
 /** Settings dialog UI class managing all configuration forms and tabs. */
 import { renderCacheList, renderCustomModels, renderLocalModelCards, renderApiModelList } from "./ai-ui.js";
-import { clearWorkspaceStorage } from "../storage/workspace-store.js";
+import { clearWorkspaceStorage, deleteDatabase } from "../storage/workspace-store.js";
 import { lookupWebLLMModel } from "../ai/model-registry.js";
 import { API_MODELS } from "../config.js";
 
@@ -313,7 +313,8 @@ export class SettingsUI {
     if (!confirm("Are you absolutely sure? Everything will be erased and the page will reload.")) return;
 
     try {
-      // 1. Clear localStorage
+      // 1. Clear IndexedDB workspace + legacy browser storage
+      await deleteDatabase();
       localStorage.clear();
       // 2. Clear sessionStorage
       sessionStorage.clear();
