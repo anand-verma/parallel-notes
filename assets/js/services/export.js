@@ -1,5 +1,5 @@
 /**
- * Parallel Notes — Export Service (Vector-Based & Math-Hardened)
+ * Parallel Notes — Export Service (Vector-Based)
  *
  * Drop-in replacement for the existing export service.
  */
@@ -11,7 +11,6 @@
 const State = {
   pdfLibLoaded: false,
   docxLibLoaded: false,
-  mathJaxLoaded: false,
 };
 
 // Standardized CSS for DOCX to fix massive indentations and set Arial font.
@@ -84,18 +83,7 @@ const Utils = {
 // ============================================================================
 
 async function loadDependencies(format) {
-  // 1. MathJax for parsing LaTeX to Math Equations
-  if (!State.mathJaxLoaded) {
-    window.MathJax = {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
-      svg: { fontCache: 'global' },
-      startup: { typeset: false } 
-    };
-    await Utils.loadScript('https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js', () => window.MathJax && window.MathJax.typesetPromise);
-    State.mathJaxLoaded = true;
-  }
-
-  // 2. Load requested export libraries
+  // Load requested export libraries
   if (format === 'pdf' && !State.pdfLibLoaded) {
     await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js', () => window.pdfMake);
     await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js', () => window.pdfMake && window.pdfMake.vfs);
@@ -109,13 +97,12 @@ async function loadDependencies(format) {
   }
 }
 
-
-// Scans HTML, fixes table sizing, and transforms math logic to print-safe formats
+// Scans HTML and fixes table sizing for print-safe formats
 async function preProcessDocument(html) {
   const container = document.createElement('div');
   container.innerHTML = html;
 
-  // 1. Force Tables to stretch 100% horizontally
+  // Force Tables to stretch 100% horizontally
   container.querySelectorAll('table').forEach(table => {
     let maxCols = 0;
     table.querySelectorAll('tr').forEach(tr => { maxCols = Math.max(maxCols, tr.children.length); });
@@ -136,7 +123,7 @@ async function exportPdf({ title, content, suffix, onProgress }) {
   Utils.report(onProgress, "prepare", 10, "Loading PDF engine...");
   await loadDependencies('pdf');
 
-  Utils.report(onProgress, "model", 30, "Processing tables and math equations...");
+  Utils.report(onProgress, "model", 30, "Processing document structure...");
   const processedHtml = await preProcessDocument(content);
 
   Utils.report(onProgress, "render", 60, "Generating high-fidelity PDF layout...");
@@ -171,7 +158,6 @@ async function exportPdf({ title, content, suffix, onProgress }) {
   };
 
   // Wrapped in a Promise to FORCE the progress bar to wait for actual completion.
-  // Previously, massive files would take 5 seconds to build the blob, causing sync issues.
   await new Promise((resolve, reject) => {
     try {
       const pdfDocGenerator = window.pdfMake.createPdf(documentDefinition);
@@ -191,7 +177,7 @@ async function exportDocx({ title, content, suffix, onProgress }) {
   Utils.report(onProgress, "prepare", 10, "Loading Word engine...");
   await loadDependencies('docx');
 
-  Utils.report(onProgress, "model", 30, "Processing tables and math equations...");
+  Utils.report(onProgress, "model", 30, "Processing document structure...");
   const processedHtml = await preProcessDocument(content);
 
   Utils.report(onProgress, "render", 60, "Applying Word formatting styles...");
@@ -225,7 +211,7 @@ async function exportDocx({ title, content, suffix, onProgress }) {
 }
 
 // ============================================================================
-// PUBLIC API (UNCHANGED)
+// PUBLIC API
 // ============================================================================
 
 export function prepareExport(format) {
