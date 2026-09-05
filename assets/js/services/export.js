@@ -1,5 +1,5 @@
 /**
- * Parallel Notes — Export Service (Vector-Based High Fidelity)
+ * Parallel Notes — Export Service (Vector-Based & Math-Hardened)
  *
  * Drop-in replacement for the existing export service.
  */
@@ -11,16 +11,17 @@
 const State = {
   pdfLibLoaded: false,
   docxLibLoaded: false,
+  mathJaxLoaded: false,
 };
 
-// Clean, standard CSS to style the DOCX export (fixes massive indentation)
+// Standardized CSS for DOCX to fix massive indentations and set Arial font.
 const DOCX_STYLES = `
   body { font-family: 'Arial', sans-serif; font-size: 11pt; line-height: 1.4; color: #000; }
-  h1 { font-size: 20pt; margin-bottom: 10pt; margin-top: 16pt; }
-  h2 { font-size: 16pt; margin-bottom: 8pt; margin-top: 14pt; }
-  h3 { font-size: 13pt; margin-bottom: 6pt; margin-top: 12pt; }
+  h1 { font-size: 20pt; margin-bottom: 10pt; margin-top: 16pt; font-family: 'Arial', sans-serif; }
+  h2 { font-size: 16pt; margin-bottom: 8pt; margin-top: 14pt; font-family: 'Arial', sans-serif; }
+  h3 { font-size: 13pt; margin-bottom: 6pt; margin-top: 12pt; font-family: 'Arial', sans-serif; }
   p { margin-bottom: 8pt; margin-top: 0; }
-  ul, ol { margin-left: 20px; margin-bottom: 8pt; padding-left: 20px; }
+  ul, ol { margin-top: 0; margin-bottom: 8pt; margin-left: 0; padding-left: 18pt; }
   li { margin-bottom: 4pt; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 10pt; }
   th, td { border: 1px solid #999; padding: 6px; text-align: left; }
@@ -28,6 +29,7 @@ const DOCX_STYLES = `
   blockquote { border-left: 3px solid #ccc; margin: 0 0 10pt 0; padding-left: 10pt; color: #555; }
   code, pre { font-family: 'Courier New', monospace; background-color: #f5f5f5; font-size: 10pt; }
   pre { padding: 10px; }
+  img { max-width: 100%; height: auto; vertical-align: middle; }
 `;
 
 // ============================================================================
@@ -46,11 +48,8 @@ const Utils = {
   },
 
   report(onProgress, phase, percent, detail = "") {
-    try {
-      onProgress?.({ phase, percent: Math.max(0, Math.min(100, percent)), detail });
-    } catch {
-      // Safe fail
-    }
+    try { onProgress?.({ phase, percent: Math.max(0, Math.min(100, percent)), detail }); } 
+    catch { /* Safe fail */ }
   },
 
   downloadBlob(blob, filename) {
@@ -62,10 +61,7 @@ const Utils = {
     anchor.style.cssText = "position:fixed; left:-10000px; top:0;";
     document.body.appendChild(anchor);
     anchor.click();
-    setTimeout(() => {
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    }, 10000);
+    setTimeout(() => { anchor.remove(); URL.revokeObjectURL(url); }, 10000);
   },
 
   loadScript(src, globalCheckFn) {
@@ -75,7 +71,7 @@ const Utils = {
       script.src = src;
       script.onload = () => {
         if (globalCheckFn()) resolve();
-        else reject(new Error(`Script loaded but validation failed: ${src}`));
+        else reject(new Error(`Validation failed for: ${src}`));
       };
       script.onerror = () => reject(new Error(`Failed to load: ${src}`));
       document.head.appendChild(script);
@@ -84,39 +80,52 @@ const Utils = {
 };
 
 // ============================================================================
-// DEPENDENCY LOADING
+// DEPENDENCY & PRE-PROCESSING ENGINE
 // ============================================================================
 
-async function loadPdfDependencies() {
-  if (State.pdfLibLoaded) return;
+async function loadDependencies(format) {
+  // 1. MathJax for parsing LaTeX to Math Equations
+  if (!State.mathJaxLoaded) {
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+      svg: { fontCache: 'global' },
+      startup: { typeset: false } 
+    };
+    await Utils.loadScript('https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js', () => window.MathJax && window.MathJax.typesetPromise);
+    State.mathJaxLoaded = true;
+  }
+
+  // 2. Load requested export libraries
+  if (format === 'pdf' && !State.pdfLibLoaded) {
+    await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js', () => window.pdfMake);
+    await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js', () => window.pdfMake && window.pdfMake.vfs);
+    await Utils.loadScript('https://cdn.jsdelivr.net/npm/html-to-pdfmake@2.4.25/browser.js', () => window.htmlToPdfmake);
+    State.pdfLibLoaded = true;
+  }
   
-  // 1. Core PDF engine (Vector generation)
-  await Utils.loadScript(
-    'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js', 
-    () => window.pdfMake
-  );
-  // 2. Standard Fonts
-  await Utils.loadScript(
-    'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js', 
-    () => window.pdfMake && window.pdfMake.vfs
-  );
-  // 3. HTML to PDFMake AST parser
-  await Utils.loadScript(
-    'https://cdn.jsdelivr.net/npm/html-to-pdfmake@2.4.25/browser.js', 
-    () => window.htmlToPdfmake
-  );
-  
-  State.pdfLibLoaded = true;
+  if (format === 'docx' && !State.docxLibLoaded) {
+    await Utils.loadScript('https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js', () => window.htmlDocx);
+    State.docxLibLoaded = true;
+  }
 }
 
-async function loadDocxDependencies() {
-  if (State.docxLibLoaded) return;
-  // Browser-safe HTML to Word generator
-  await Utils.loadScript(
-    'https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js', 
-    () => window.htmlDocx
-  );
-  State.docxLibLoaded = true;
+
+// Scans HTML, fixes table sizing, and transforms math logic to print-safe formats
+async function preProcessDocument(html) {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  // 1. Force Tables to stretch 100% horizontally
+  container.querySelectorAll('table').forEach(table => {
+    let maxCols = 0;
+    table.querySelectorAll('tr').forEach(tr => { maxCols = Math.max(maxCols, tr.children.length); });
+    if (maxCols > 0) {
+      const widths = Array(maxCols).fill('*');
+      table.setAttribute('data-pdfmake', JSON.stringify({ widths }));
+    }
+  });
+
+  return container.innerHTML;
 }
 
 // ============================================================================
@@ -124,72 +133,70 @@ async function loadDocxDependencies() {
 // ============================================================================
 
 async function exportPdf({ title, content, suffix, onProgress }) {
-  Utils.report(onProgress, "prepare", 10, "Loading vector PDF engine...");
-  await loadPdfDependencies();
+  Utils.report(onProgress, "prepare", 10, "Loading PDF engine...");
+  await loadDependencies('pdf');
 
-  Utils.report(onProgress, "model", 40, "Parsing document structure...");
+  Utils.report(onProgress, "model", 30, "Processing tables and math equations...");
+  const processedHtml = await preProcessDocument(content);
 
-  // The html-to-pdfmake library perfectly parses rich text into native PDF layout rules
-  const pdfMakeAst = window.htmlToPdfmake(content, {
-    // Configures standard styling & fixes the massive indentation bug
+  Utils.report(onProgress, "render", 60, "Generating high-fidelity PDF layout...");
+
+  const pdfMakeAst = window.htmlToPdfmake(processedHtml, {
     defaultStyles: {
       p: { margin: [0, 0, 0, 8] },
-      h1: { fontSize: 22, bold: true, margin: [0, 12, 0, 8] },
-      h2: { fontSize: 18, bold: true, margin: [0, 10, 0, 6] },
-      h3: { fontSize: 14, bold: true, margin: [0, 8, 0, 4] },
+      h1: { fontSize: 20, bold: true, margin: [0, 14, 0, 8] },
+      h2: { fontSize: 16, bold: true, margin: [0, 12, 0, 6] },
+      h3: { fontSize: 13, bold: true, margin: [0, 10, 0, 4] },
       ul: { margin: [0, 0, 0, 8] },
       ol: { margin: [0, 0, 0, 8] },
       table: { margin: [0, 0, 0, 10] },
       blockquote: { margin: [10, 5, 0, 5], italics: true, color: '#555555' },
-      code: { background: '#f4f4f4' }
+      code: { background: '#f5f5f5' }
     }
   });
 
   const documentDefinition = {
-    info: {
-      title: Utils.cleanTitle(title),
-      author: 'Parallel Notes'
-    },
+    info: { title: Utils.cleanTitle(title), author: 'Parallel Notes' },
     pageSize: 'A4',
     pageMargins: [50, 50, 50, 50],
     content: pdfMakeAst,
     defaultStyle: {
-      font: 'Roboto', // Built into vfs_fonts
+      font: 'Roboto', 
       fontSize: 11,
       lineHeight: 1.4,
-      color: '#1a1a1a'
+      color: '#111111'
     },
-    // Allows tables and lists to intelligently jump to the next page rather than cut text
-    pageBreakBefore: function(currentNode, followingNodesOnPage, nodesOnNextPage, previousNodesOnPage) {
-      // Prevents lonely table headers at the bottom of a page
-      return currentNode.id === 'page-break';
-    }
+    // Allows tables to cleanly jump to next page rather than slicing text in half
+    pageBreakBefore: (currentNode) => currentNode.id === 'page-break'
   };
 
-  Utils.report(onProgress, "render", 70, "Rendering crisp vector typography...");
-
-  try {
-    const pdfDocGenerator = window.pdfMake.createPdf(documentDefinition);
-    
-    // Create Blob natively
-    pdfDocGenerator.getBlob((blob) => {
-      Utils.report(onProgress, "package", 90, "Packaging PDF...");
-      Utils.downloadBlob(blob, `${Utils.fileStem(title, suffix)}.pdf`);
-      Utils.report(onProgress, "done", 100, "PDF download started.");
-    });
-  } catch (error) {
-    throw new Error("Failed during PDF generation: " + error.message);
-  }
+  // Wrapped in a Promise to FORCE the progress bar to wait for actual completion.
+  // Previously, massive files would take 5 seconds to build the blob, causing sync issues.
+  await new Promise((resolve, reject) => {
+    try {
+      const pdfDocGenerator = window.pdfMake.createPdf(documentDefinition);
+      pdfDocGenerator.getBlob((blob) => {
+        Utils.report(onProgress, "package", 90, "Packaging PDF...");
+        Utils.downloadBlob(blob, `${Utils.fileStem(title, suffix)}.pdf`);
+        Utils.report(onProgress, "done", 100, "PDF download started.");
+        resolve();
+      });
+    } catch (error) {
+      reject(new Error("Failed during PDF generation: " + error.message));
+    }
+  });
 }
 
 async function exportDocx({ title, content, suffix, onProgress }) {
-  Utils.report(onProgress, "prepare", 10, "Loading Word exporter...");
-  await loadDocxDependencies();
+  Utils.report(onProgress, "prepare", 10, "Loading Word engine...");
+  await loadDependencies('docx');
 
-  Utils.report(onProgress, "model", 40, "Parsing document structure...");
+  Utils.report(onProgress, "model", 30, "Processing tables and math equations...");
+  const processedHtml = await preProcessDocument(content);
 
-  // Combine HTML with inline styles to normalize DOCX indentation and font sizing
-  const htmlString = `
+  Utils.report(onProgress, "render", 60, "Applying Word formatting styles...");
+
+  const finalHtmlString = `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -198,15 +205,13 @@ async function exportDocx({ title, content, suffix, onProgress }) {
       <style>${DOCX_STYLES}</style>
     </head>
     <body>
-      ${content}
+      ${processedHtml}
     </body>
     </html>
   `;
 
-  Utils.report(onProgress, "render", 70, "Translating to native Word format...");
-
   try {
-    const docxBlob = window.htmlDocx.asBlob(htmlString, {
+    const docxBlob = window.htmlDocx.asBlob(finalHtmlString, {
       orientation: 'portrait',
       margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
     });
@@ -225,12 +230,8 @@ async function exportDocx({ title, content, suffix, onProgress }) {
 
 export function prepareExport(format) {
   const normalized = String(format || "").toLowerCase();
-  
-  if (normalized === "pdf") {
-    return loadPdfDependencies();
-  }
-  if (normalized === "docx") {
-    return loadDocxDependencies();
+  if (normalized === "pdf" || normalized === "docx") {
+    return loadDependencies(normalized);
   }
   return Promise.reject(new Error("Unsupported export format."));
 }
