@@ -1,8 +1,9 @@
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
 const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
-let pdfjsPromise;
 
-async function getPdfJs() {
+let pdfjsPromise = null;
+
+const getPdfJs = () => {
   if (!pdfjsPromise) {
     pdfjsPromise = import(PDFJS_URL).then(pdfjs => {
       pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
@@ -10,161 +11,240 @@ async function getPdfJs() {
     });
   }
   return pdfjsPromise;
-}
+};
 
-function median(values) {
+const checkAbort = (signal) => {
+  if (signal?.aborted) throw new DOMException("Import cancelled", "AbortError");
+};
+
+const median = (values) => {
   if (!values.length) return 0;
-  const a = [...values].sort((x, y) => x - y);
-  const mid = Math.floor(a.length / 2);
-  return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
-}
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1; // Bitwise shift for fast Math.floor(length / 2)
+  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
 
-function normalizeLineText(text) {
-  return text.replace(/\s+/g, " ").trim();
-}
+const escapeHtml = (text) => 
+  String(text || "").replace(/[&<>]/g, m => m === "&" ? "&amp;" : m === "<" ? "&lt;" : "&gt;");
 
-function escapeHtml(text) {
-  return String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+const RE_PUNC_START = /^[.,;:!?%)\]}]/;
+const RE_PUNC_END = /[([{\/-]$/;
+const RE_SPACE_START = /^\s/;
+const RE_SPACE_END = /\s$/;
+const RE_MULTI_SPACE = /\s+/g;
 
-function fontFlags(item, styles) {
-  const style = styles?.[item.fontName] || {};
-  const family = `${style.fontFamily || ""} ${item.fontName || ""}`.toLowerCase();
-  return {
-    bold: /bold|black|heavy|semibold|demi/.test(family),
-    italic: /italic|oblique/.test(family)
-  };
-}
-
-function itemHtml(item, styles) {
-  let text = item.str || "";
-  if (!text) return "";
-  const flags = fontFlags(item, styles);
-  text = escapeHtml(text);
-  if (flags.bold) text = `<strong>${text}</strong>`;
-  if (flags.italic) text = `<em>${text}</em>`;
-  return text;
-}
-
-function needsSpace(previous, current, gap, fontSize) {
-  if (!previous) return false;
-  if (/^[,.;:!?%)\]}]/.test(current)) return false;
-  if (/[([\{\/-]$/.test(previous)) return false;
-  if (/\s$/.test(previous) || /^\s/.test(current)) return false;
+const needsSpace = (prevStr, currStr, gap, fontSize) => {
+  if (!prevStr || RE_PUNC_START.test(currStr) || RE_PUNC_END.test(prevStr)) return false;
+  if (RE_SPACE_END.test(prevStr) || RE_SPACE_START.test(currStr)) return false;
   return gap > Math.max(1.5, fontSize * 0.12);
-}
-
-function joinItems(items) {
-  let text = "";
-  let html = "";
-  let previous = null;
-  for (const item of items) {
-    const current = item.str || "";
-    if (!current) continue;
-    const gap = previous ? item.x - previous.xEnd : 0;
-    const space = previous && needsSpace(previous.str, current, gap, Math.max(previous.fontSize, item.fontSize));
-    if (space) { text += " "; html += " "; }
-    text += current;
-    html += item.html;
-    previous = { ...item, str: current, xEnd: item.x + (item.width || 0) };
-  }
-  return { text: normalizeLineText(text), html };
-}
+};
 
 function groupItemsIntoLines(items, styles) {
-  const usable = items.filter(item => item.str && item.str.trim());
-  const lineGroups = [];
-  for (const item of usable) {
-    const transform = item.transform || [1, 0, 0, 1, 0, 0];
-    const x = transform[4] || 0;
-    const y = transform[5] || 0;
-    const fontSize = Math.max(1, Math.hypot(transform[0] || 1, transform[1] || 0));
-    const tolerance = Math.max(2.2, fontSize * 0.32);
-    let group = lineGroups.find(g => Math.abs(g.y - y) <= tolerance);
-    if (!group) {
-      group = { y, items: [] };
-      lineGroups.push(group);
-    }
-    group.items.push({ ...item, x, y, fontSize, html: itemHtml(item, styles) });
+  const fontCache = new Map();
+  
+  const getFontFlags = (fontName) => {
+    if (fontCache.has(fontName)) return fontCache.get(fontName);
+    const style = styles?.[fontName] || {};
+    const family = `${style.fontFamily || ""} ${fontName || ""}`.toLowerCase();
+    const flags = {
+      bold: /bold|black|heavy|semibold|demi/.test(family),
+      italic: /italic|oblique/.test(family)
+    };
+    fontCache.set(fontName, flags);
+    return flags;
+  };
+
+  const processedItems = [];
+  for (const item of items) {
+    if (!item.str?.trim()) continue;
+    
+    const [scaleX, skewY, , , x, y] = item.transform || [1, 0, 0, 1, 0, 0];
+    const fontSize = Math.max(1, Math.hypot(scaleX, skewY));
+    const flags = getFontFlags(item.fontName);
+    
+    let html = escapeHtml(item.str);
+    if (flags.bold) html = `<strong>${html}</strong>`;
+    if (flags.italic) html = `<em>${html}</em>`;
+
+    processedItems.push({ ...item, x, y, fontSize, html, flags, str: item.str });
   }
-  return lineGroups
-    .sort((a, b) => b.y - a.y)
-    .map(group => {
-      group.items.sort((a, b) => a.x - b.x);
-      const joined = joinItems(group.items);
-      const x = group.items[0]?.x || 0;
-      const xEnd = group.items.reduce((max, i) => Math.max(max, i.x + (i.width || 0)), x);
-      const fontSize = median(group.items.map(i => i.fontSize));
-      const boldRatio = group.items.length ? group.items.filter(i => fontFlags(i, styles).bold).length / group.items.length : 0;
-      const italicRatio = group.items.length ? group.items.filter(i => fontFlags(i, styles).italic).length / group.items.length : 0;
-      return { text: joined.text, html: joined.html, x, xEnd, y: group.y, fontSize, boldRatio, italicRatio, items: group.items };
-    })
-    .filter(line => line.text);
+
+  // PDF.js origin is bottom-left, sorting Y descending puts top lines first
+  processedItems.sort((a, b) => b.y - a.y);
+
+  const lines = [];
+  for (const item of processedItems) {
+    const tolerance = Math.max(2.2, item.fontSize * 0.32);
+    const currentGroup = lines[lines.length - 1];
+
+    if (currentGroup && Math.abs(currentGroup.y - item.y) <= tolerance) {
+      currentGroup.items.push(item);
+    } else {
+      lines.push({ y: item.y, items: [item] });
+    }
+  }
+
+  return lines.map(group => {
+    group.items.sort((a, b) => a.x - b.x);
+    
+    let text = "", html = "", prev = null;
+    let boldCount = 0, italicCount = 0;
+    let xEnd = group.items[0]?.x || 0;
+
+    for (const item of group.items) {
+      const gap = prev ? item.x - prev.xEnd : 0;
+      const maxFontSize = prev ? Math.max(prev.fontSize, item.fontSize) : item.fontSize;
+
+      if (needsSpace(prev?.str, item.str, gap, maxFontSize)) {
+        text += " "; html += " ";
+      }
+
+      text += item.str;
+      html += item.html;
+      item.xEnd = item.x + (item.width || 0);
+      xEnd = Math.max(xEnd, item.xEnd);
+      prev = item;
+
+      if (item.flags.bold) boldCount++;
+      if (item.flags.italic) italicCount++;
+    }
+
+    return {
+      text: text.replace(RE_MULTI_SPACE, " ").trim(),
+      html,
+      x: group.items[0]?.x || 0,
+      xEnd,
+      y: group.y,
+      fontSize: median(group.items.map(i => i.fontSize)),
+      boldRatio: boldCount / group.items.length,
+      italicRatio: italicCount / group.items.length,
+      items: group.items
+    };
+  }).filter(line => line.text);
 }
 
 function addIndentation(lines) {
   if (!lines.length) return lines;
-  const left = Math.min(...lines.map(l => l.x));
-  const step = Math.max(14, median(lines.map(l => l.fontSize)) * 1.6);
+  
+  let minX = Infinity;
+  const fontSizes = [];
+  for (const line of lines) {
+    if (line.x < minX) minX = line.x;
+    fontSizes.push(line.fontSize);
+  }
+
+  const step = Math.max(14, median(fontSizes) * 1.6);
+
   return lines.map(line => {
-    const raw = Math.max(0, line.x - left);
-    // Preserve meaningful PDF indentation while avoiding tiny coordinate noise.
-    const indent = raw < step * 0.45 ? 0 : Math.min(200, Math.round(raw / step) * 20);
-    return { ...line, indent, indentLevel: Math.round(indent / 20) };
+    const rawOffset = Math.max(0, line.x - minX);
+    const indent = rawOffset < step * 0.45 ? 0 : Math.min(200, Math.round(rawOffset / step) * 20);
+    return { ...line, indent, indentLevel: indent / 20 };
   });
 }
 
 function removeRepeatedHeadersFooters(pages) {
+  if (pages.length < 3) return pages;
+
   const counts = new Map();
   for (const page of pages) {
-    const seen = new Set(page.lines.slice(0, 3).concat(page.lines.slice(-3)).map(l => l.text.toLowerCase()));
-    seen.forEach(text => counts.set(text, (counts.get(text) || 0) + 1));
+    const edgeLines = [...page.lines.slice(0, 3), ...page.lines.slice(-3)];
+    const seen = new Set(edgeLines.map(l => l.text.toLowerCase()));
+    for (const text of seen) {
+      counts.set(text, (counts.get(text) || 0) + 1);
+    }
   }
+
   const threshold = Math.max(2, Math.ceil(pages.length * 0.6));
-  const repeated = new Set([...counts.entries()].filter(([, count]) => count >= threshold).map(([text]) => text));
-  if (!repeated.size || pages.length < 3) return pages;
-  return pages.map(page => ({ ...page, lines: page.lines.filter(line => !repeated.has(line.text.toLowerCase())) }));
+  const repeated = new Set();
+  
+  for (const [text, count] of counts.entries()) {
+    if (count >= threshold) repeated.add(text);
+  }
+
+  if (!repeated.size) return pages;
+
+  return pages.map(page => ({
+    ...page,
+    lines: page.lines.filter(line => !repeated.has(line.text.toLowerCase()))
+  }));
 }
 
 function detectColumns(lines, pageWidth) {
   if (lines.length < 10 || !pageWidth) return null;
-  const starts = lines.map(l => l.x).filter(x => x > pageWidth * 0.03 && x < pageWidth * 0.85);
+
+  const starts = lines.map(l => l.x)
+    .filter(x => x > pageWidth * 0.03 && x < pageWidth * 0.85)
+    .sort((a, b) => a - b);
+
   if (starts.length < 10) return null;
-  const sorted = [...starts].sort((a, b) => a - b);
-  let best = null;
-  for (let i = 1; i < sorted.length; i++) {
-    const gap = sorted[i] - sorted[i - 1];
-    if (gap > pageWidth * 0.08 && (!best || gap > best.gap)) best = { gap, split: (sorted[i] + sorted[i - 1]) / 2 };
+
+  let bestGap = 0;
+  let bestSplit = 0;
+
+  for (let i = 1; i < starts.length; i++) {
+    const gap = starts[i] - starts[i - 1];
+    if (gap > pageWidth * 0.08 && gap > bestGap) {
+      bestGap = gap;
+      bestSplit = (starts[i] + starts[i - 1]) / 2;
+    }
   }
-  if (!best || best.split < pageWidth * 0.2 || best.split > pageWidth * 0.8) return null;
-  const left = lines.filter(l => l.x < best.split);
-  const right = lines.filter(l => l.x >= best.split);
-  if (left.length < lines.length * 0.2 || right.length < lines.length * 0.2) return null;
-  return { split: best.split, left, right };
+
+  if (!bestSplit || bestSplit < pageWidth * 0.2 || bestSplit > pageWidth * 0.8) return null;
+
+  const left = [], right = [];
+  for (const line of lines) {
+    if (line.x < bestSplit) left.push(line);
+    else right.push(line);
+  }
+
+  const minSide = lines.length * 0.2;
+  if (left.length < minSide || right.length < minSide) return null;
+
+  return { split: bestSplit, left, right };
 }
 
 export async function extractPdf(file, { onProgress, signal } = {}) {
-  if (signal?.aborted) throw new DOMException("Import cancelled", "AbortError");
+  checkAbort(signal);
+
   const pdfjs = await getPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
-  if (signal?.aborted) throw new DOMException("Import cancelled", "AbortError");
+  
+  checkAbort(signal);
+  
   const loadingTask = pdfjs.getDocument({ data });
   const pdf = await loadingTask.promise;
   const pages = [];
+
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      if (signal?.aborted) throw new DOMException("Import cancelled", "AbortError");
+      checkAbort(signal);
+      
       const page = await pdf.getPage(pageNumber);
       try {
         const viewport = page.getViewport({ scale: 1 });
-        const content = await page.getTextContent({ normalizeWhitespace: true, disableCombineTextItems: true });
+        const content = await page.getTextContent({ 
+          normalizeWhitespace: true, 
+          disableCombineTextItems: true 
+        });
+
         let lines = groupItemsIntoLines(content.items, content.styles);
         const columns = detectColumns(lines, viewport.width);
-        const orderedLines = columns
-          ? [...columns.left.sort((a, b) => b.y - a.y), ...columns.right.sort((a, b) => b.y - a.y)]
-          : lines;
-        lines = addIndentation(orderedLines);
-        pages.push({ pageNumber, width: viewport.width, height: viewport.height, lines, columns: !!columns });
+
+        if (columns) {
+          lines = [
+            ...columns.left.sort((a, b) => b.y - a.y), 
+            ...columns.right.sort((a, b) => b.y - a.y)
+          ];
+        }
+
+        pages.push({
+          pageNumber,
+          width: viewport.width,
+          height: viewport.height,
+          lines: addIndentation(lines),
+          columns: !!columns
+        });
+
         onProgress?.({ page: pageNumber, pages: pdf.numPages, phase: "extract" });
       } finally {
         page.cleanup?.();
