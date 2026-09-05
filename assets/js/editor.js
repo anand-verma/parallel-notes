@@ -11,7 +11,7 @@ import { TableCell } from "https://esm.sh/@tiptap/extension-table-cell@3.29.2";
 import { TaskList } from "https://esm.sh/@tiptap/extension-task-list@3.29.2";
 import { TaskItem } from "https://esm.sh/@tiptap/extension-task-item@3.29.2";
 import { Extension } from "https://esm.sh/@tiptap/core@3.29.2";
-import katex from "https://esm.sh/katex@0.16.11";
+import katex from "../vendor/katex/katex.mjs";
 
 /* ── Custom Math Extensions ───────────────────────────────── */
 const getMathAttributes = () => ({

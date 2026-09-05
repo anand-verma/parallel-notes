@@ -1,5 +1,5 @@
-const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
-const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+const PDFJS_URL = "../../../../vendor/pdfjs/pdf.min.mjs";
+const PDFJS_WORKER_URL = "../../../../vendor/pdfjs/pdf.worker.min.mjs";
 
 let pdfjsPromise = null;
 

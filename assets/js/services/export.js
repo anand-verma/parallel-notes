@@ -109,7 +109,7 @@ const Utils = {
 async function loadHindiPdfFont() {
   if (State.hindiFontLoaded) return;
 
-  const fontUrl = 'https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/unhinted/ttf/NotoSansDevanagari/NotoSansDevanagari-Regular.ttf';
+  const fontUrl = './assets/vendor/fonts/NotoSansDevanagari-Regular.ttf';
 
   const response = await fetch(fontUrl, { mode: 'cors' });
   if (!response.ok) throw new Error(`Font fetch failed: ${response.status}`);
@@ -150,9 +150,9 @@ async function loadHindiPdfFont() {
 // Noto Sans Devanagari doesn't carry full Latin/typographic coverage.
 async function loadPdfVectorDependencies(needsHindiFont = false) {
   if (!State.pdfLibLoaded) {
-    await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js', () => window.pdfMake);
-    await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js', () => window.pdfMake && window.pdfMake.vfs);
-    await Utils.loadScript('https://cdn.jsdelivr.net/npm/html-to-pdfmake@2.4.25/browser.js', () => window.htmlToPdfmake);
+    await Utils.loadScript('./assets/vendor/pdfmake/pdfmake.min.js', () => window.pdfMake);
+    await Utils.loadScript('./assets/vendor/pdfmake/vfs_fonts.js', () => window.pdfMake && window.pdfMake.vfs);
+    await Utils.loadScript('./assets/vendor/html-to-pdfmake/browser.js', () => window.htmlToPdfmake);
     State.pdfLibLoaded = true;
   }
 
@@ -172,8 +172,8 @@ async function loadPdfVectorDependencies(needsHindiFont = false) {
 
 async function loadPdfRasterDependencies() {
   if (State.rasterLibLoaded) return;
-  await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', () => window.html2canvas);
-  await Utils.loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', () => window.jspdf && window.jspdf.jsPDF);
+  await Utils.loadScript('./assets/vendor/html2canvas/html2canvas.min.js', () => window.html2canvas);
+  await Utils.loadScript('./assets/vendor/jspdf/jspdf.umd.min.js', () => window.jspdf && window.jspdf.jsPDF);
   State.rasterLibLoaded = true;
 }
 
@@ -183,7 +183,7 @@ async function loadDependencies(format) {
   if (format === 'pdf') return loadPdfVectorDependencies(false);
   if (format === 'pdf-raster') return loadPdfRasterDependencies();
   if (format === 'docx' && !State.docxLibLoaded) {
-    await Utils.loadScript('https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js', () => window.htmlDocx);
+    await Utils.loadScript('./assets/vendor/html-docx-js/html-docx.js', () => window.htmlDocx);
     State.docxLibLoaded = true;
   }
 }

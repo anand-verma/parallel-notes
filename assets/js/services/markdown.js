@@ -2,9 +2,9 @@
 let parserPromise;
 async function loadParser() {
   if (!parserPromise) parserPromise = Promise.all([
-    import("https://esm.sh/marked@16.1.1"),
-    import("https://esm.sh/dompurify@3.2.6"),
-    import("https://esm.sh/marked-katex-extension@5.1.2")
+    import("../../vendor/marked/marked.esm.js"),
+    import("../../vendor/dompurify/purify.es.mjs"),
+    import("../../vendor/marked-katex-extension/index.mjs")
   ]);
   return parserPromise;
 }
