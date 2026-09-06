@@ -54,6 +54,8 @@ export class SettingsUI {
     this._closeAllAddForms();
     $("#customApiLabel").value = $("#customApiModelId").value = $("#customApiBaseUrl").value = $("#customApiKey").value = "";
 
+    this._populateLocalModelDatalist();
+
     this.switchTab(tabName);
     $("#settingsDialog").showModal();
   }
@@ -260,6 +262,21 @@ export class SettingsUI {
         btn.disabled = false;
       }
     });
+  }
+
+  _populateLocalModelDatalist() {
+    const datalist = document.querySelector("#webllmModelList");
+    if (!datalist || datalist.children.length > 0) return;
+    const config = this.ui.ai.getWebLLMConfig();
+    if (!config || !config.model_list) return;
+    
+    const fragment = document.createDocumentFragment();
+    config.model_list.forEach(record => {
+      const option = document.createElement("option");
+      option.value = record.model_id;
+      fragment.appendChild(option);
+    });
+    datalist.appendChild(fragment);
   }
 
   /* ── Custom models (existing feature) ────────── */

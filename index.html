@@ -271,7 +271,8 @@
               <div class="add-model-section">
                 <button type="button" class="add-model-toggle" id="addLocalModelToggle">+ Add Local Model</button>
                 <div class="add-model-form" id="addLocalModelForm">
-                  <input type="text" id="addLocalModelId" class="form-input" placeholder="WebLLM Model ID (e.g. Phi-3.5-mini-instruct-q4f16_1-MLC)">
+                  <input type="text" id="addLocalModelId" class="form-input" list="webllmModelList" placeholder="WebLLM Model ID (e.g. Phi-3.5-mini-instruct-q4f16_1-MLC)">
+                  <datalist id="webllmModelList"></datalist>
                   <div class="add-model-validation" id="addLocalModelValidation"></div>
                   <button type="button" class="primary-btn" id="addLocalModelBtn" disabled>Add Model</button>
                 </div>

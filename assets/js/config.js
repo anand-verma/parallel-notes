@@ -6,8 +6,8 @@ export const WEBLLM_VERSION = "0.2.84";
 // Curated local models. WebLLM availability is checked at runtime.
 export const PREFERRED_MODEL_IDS = [
   "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
-  "Llama-3.2-1B-Instruct-q4f16_1-MLC",
-  "SmolLM2-1.7B-Instruct-q4f16_1-MLC"
+  "gemma-2-2b-it-q4f16_1-MLC",
+  "Llama-3.2-1B-Instruct-q4f16_1-MLC"
 ];
 
 export const API_MODELS = [
