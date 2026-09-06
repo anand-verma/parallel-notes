@@ -34,8 +34,10 @@ export class AIController {
       settings: this.settings
     });
     if (!this.models.length) throw new Error("No AI models were found.");
-    const next = this.selectedModel && this.models.some(m => m.id === this.selectedModel) ? this.selectedModel : preferredModel(this.models);
+    const cachedModel = localStorage.getItem("pns.selectedModel");
+    const next = this.selectedModel && this.models.some(m => m.id === this.selectedModel) ? this.selectedModel : (cachedModel && this.models.some(m => m.id === cachedModel) ? cachedModel : preferredModel(this.models));
     this.selectedModel = next;
+    if (this.selectedModel) localStorage.setItem("pns.selectedModel", this.selectedModel);
     this.ui.renderModelPicker(this.models, this.selectedModel);
     this.ui.setAIStatus("AI ready", "ready");
     // Cache status is informational; don't block the initial UI on storage reads.
@@ -66,14 +68,21 @@ export class AIController {
       settings: this.settings
     });
     if (!this.models.some(m => m.id === this.selectedModel)) {
-      this.selectedModel = preferredModel(this.models);
+      const cachedModel = localStorage.getItem("pns.selectedModel");
+      this.selectedModel = (cachedModel && this.models.some(m => m.id === cachedModel)) ? cachedModel : preferredModel(this.models);
+      if (this.selectedModel) localStorage.setItem("pns.selectedModel", this.selectedModel);
     }
     this.ui.renderModelPicker(this.models, this.selectedModel);
   }
 
   getWebLLMConfig() { return this.webllmConfig; }
 
-  setModel(id) { if (this.models.some(m => m.id === id)) this.selectedModel = id; }
+  setModel(id) { 
+    if (this.models.some(m => m.id === id)) {
+      this.selectedModel = id; 
+      localStorage.setItem("pns.selectedModel", id);
+    }
+  }
   getModelDef() { return this.models.find(m => m.id === this.selectedModel); }
 
   async loadSelectedModel() {
@@ -100,6 +109,7 @@ export class AIController {
     try {
       await this.loadSelectedModel();
       this.ui.resolveModelLoad(true);
+      localStorage.setItem("pns.selectedModel", modelId);
     } catch (err) {
       this.selectedModel = prev;
       this.ui.resolveModelLoad(false);

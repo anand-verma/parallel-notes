@@ -433,6 +433,7 @@ export class AppUI {
     if (this.state.activeId === session.docId && this.editors.result === session.resultEditor) {
       session.resultEditor.commands.setContent(html, { emitUpdate: false });
       this.toggleEmptyResult();
+      this.updateCounts();
     }
     try { await saveDocument(this.state, session.docId); } catch (error) { this.toast(error.message || "Could not save generated draft.", "error"); }
   }
