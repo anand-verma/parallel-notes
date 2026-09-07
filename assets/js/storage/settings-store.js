@@ -5,7 +5,7 @@ const KEY = "pns.settings.v4";
 const LEGACY_KEYS = ["pns.settings.v3", "pns.settings.v2", "pns.settings.v1"];
 const VERSION = 4;
 
-const defaults = () => ({
+export const defaults = () => ({
   version: VERSION,
   apiKeys: { openai: "", gemini: "" },
   rememberApiKeys: true,
@@ -30,6 +30,10 @@ const defaults = () => ({
     promptAddendum: ""
   }
 });
+
+export function getDefaultAIGenerationSettings() {
+  return { ...defaults().aiGeneration };
+}
 
 function normalize(value = {}) {
   const base = defaults();

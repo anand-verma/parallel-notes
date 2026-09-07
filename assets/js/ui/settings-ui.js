@@ -3,6 +3,7 @@ import { renderCacheList, renderCustomModels, renderLocalModelCards, renderApiMo
 import { clearWorkspaceStorage, deleteDatabase } from "../storage/workspace-store.js";
 import { lookupWebLLMModel } from "../ai/model-registry.js";
 import { API_MODELS } from "../config.js";
+import { getDefaultAIGenerationSettings } from "../storage/settings-store.js";
 
 export class SettingsUI {
   constructor({ ui, settings }) {
@@ -12,6 +13,7 @@ export class SettingsUI {
     this._bindAddToggles();
     this._bindAddButtons();
     this._bindDataActions();
+    this._bindAIActions();
     this._bindLocalModelValidation();
   }
 
@@ -101,6 +103,17 @@ export class SettingsUI {
       geminiThinkingLevel: $("#aiGeminiThinking")?.value || "minimal",
       promptAddendum: String($("#aiPromptAddendum")?.value || "").slice(0, 4000)
     };
+  }
+
+  resetAIGenerationSettings() {
+    this.settings.aiGeneration = getDefaultAIGenerationSettings();
+    this._populateAIGenerationSettings();
+    this.ui.persistSettings();
+    this.ui.toast("AI behaviour settings reset to defaults.", "success");
+  }
+
+  _bindAIActions() {
+    document.querySelector("#resetAiSettingsBtn")?.addEventListener("click", () => this.resetAIGenerationSettings());
   }
 
   /* ── Save (API keys from form) ───────────────── */
