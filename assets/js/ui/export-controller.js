@@ -42,7 +42,7 @@ export class ExportController {
         title: doc.title,
         content,
         editorElement: editor.view?.dom || null,
-        suffix: paneId === "source" ? "Notes" : "Draft",
+        prefix: paneId === "source" ? "Notes" : "Draft",
       };
 
       if (this.ui.exportDialog.open) this.ui.exportDialog.close();
@@ -53,7 +53,7 @@ export class ExportController {
         title: snapshot.title,
         content: snapshot.content,
         editorElement: snapshot.editorElement,
-        suffix: snapshot.suffix,
+        prefix: snapshot.prefix,
         onProgress: ({ percent, detail }) => {
           this.ui.showExportStatus?.(true, detail || (format === "pdf" ? "Creating PDF…" : "Creating Word document…"), percent);
         },

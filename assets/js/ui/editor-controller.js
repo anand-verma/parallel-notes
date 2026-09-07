@@ -35,7 +35,9 @@ export class EditorController {
     // newly active document. This is especially important while AI streaming
     // is still active during a document switch.
     if (!doc || doc.id !== documentId || !editor || editor !== editorInstance) return;
-    doc[key] = editor.getHTML();
+    const html = editor.getHTML();
+    if (doc[key] === html) return;
+    doc[key] = html;
     doc.updatedAt = Date.now();
     this.ui.documents.markDirty();
     this.scheduleCountUpdate();

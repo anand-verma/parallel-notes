@@ -59,10 +59,10 @@ const Utils = {
     return String(value || "Untitled Notes").replace(/[<>:"/\\|?*]+/g, " ").replace(/\s+/g, " ").trim() || "Untitled Notes";
   },
 
-  fileStem(title, suffix = "") {
-    const base = this.cleanTitle(title).replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "export";
-    const tail = String(suffix || "").replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "").toLowerCase();
-    return tail ? `${base.toLowerCase()}_${tail}` : base.toLowerCase();
+  fileStem(title, prefix = "") {
+    const base = this.cleanTitle(title).replace(/[^a-z0-9\-]+/gi, "-").replace(/^-+|-+$/g, "") || "export";
+    const head = String(prefix || "").replace(/[^a-z0-9\-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
+    return head ? `${head}-${base.toLowerCase()}` : base.toLowerCase();
   },
 
   report(onProgress, phase, percent, detail = "") {
@@ -256,7 +256,7 @@ async function preProcessDocument(html) {
 // PDF — VECTOR ENGINE (fast, selectable text; safe for Latin-script content)
 // ============================================================================
 
-async function exportPdfVector({ title, content, suffix, onProgress }) {
+async function exportPdfVector({ title, content, prefix, onProgress }) {
   // Devanagari documents are normally routed to exportPdfRaster before
   // this function is ever called. This only comes back true here in the
   // fallback path (raster engine threw) — everyday English exports get
@@ -320,7 +320,7 @@ async function exportPdfVector({ title, content, suffix, onProgress }) {
 
         pdfDocGenerator.getBlob((blob) => {
           Utils.report(onProgress, "package", 90, "Packaging PDF...");
-          Utils.downloadBlob(blob, `${Utils.fileStem(title, suffix)}.pdf`);
+          Utils.downloadBlob(blob, `${Utils.fileStem(title, prefix)}.pdf`);
           Utils.report(onProgress, "done", 100, "PDF download started.");
           resolve();
         });
@@ -348,7 +348,7 @@ async function exportPdfVector({ title, content, suffix, onProgress }) {
 // correctly.
 // ============================================================================
 
-async function exportPdfRaster({ title, content, suffix, onProgress }) {
+async function exportPdfRaster({ title, content, prefix, onProgress }) {
   Utils.report(onProgress, "prepare", 10, "Loading high-fidelity renderer...");
   await loadPdfRasterDependencies();
 
@@ -399,7 +399,7 @@ async function exportPdfRaster({ title, content, suffix, onProgress }) {
     }
 
     const blob = pdf.output('blob');
-    Utils.downloadBlob(blob, `${Utils.fileStem(title, suffix)}.pdf`);
+    Utils.downloadBlob(blob, `${Utils.fileStem(title, prefix)}.pdf`);
     Utils.report(onProgress, "done", 100, "PDF download started.");
   } finally {
     wrapper.remove();
@@ -423,7 +423,7 @@ async function exportPdf(args) {
 // DOCX
 // ============================================================================
 
-async function exportDocx({ title, content, suffix, onProgress }) {
+async function exportDocx({ title, content, prefix, onProgress }) {
   Utils.report(onProgress, "prepare", 10, "Loading Word engine...");
   await loadDependencies('docx');
 
@@ -454,7 +454,7 @@ async function exportDocx({ title, content, suffix, onProgress }) {
     });
 
     Utils.report(onProgress, "package", 90, "Packaging DOCX...");
-    Utils.downloadBlob(docxBlob, `${Utils.fileStem(title, suffix)}.docx`);
+    Utils.downloadBlob(docxBlob, `${Utils.fileStem(title, prefix)}.docx`);
     Utils.report(onProgress, "done", 100, "Word download started.");
   } catch (error) {
     throw new Error("Failed during DOCX generation: " + error.message);
@@ -473,7 +473,7 @@ export function prepareExport(format) {
   return Promise.reject(new Error("Unsupported export format."));
 }
 
-export async function exportDocument({ format, title, content, suffix = "Notes", onProgress }) {
+export async function exportDocument({ format, title, content, prefix = "Notes", onProgress }) {
   if (!content || content.trim() === "" || content === "<p></p>") {
     throw new Error("Nothing to export.");
   }
@@ -481,10 +481,10 @@ export async function exportDocument({ format, title, content, suffix = "Notes",
   const normalized = String(format || "").toLowerCase();
 
   if (normalized === "pdf") {
-    return exportPdf({ title, content, suffix, onProgress });
+    return exportPdf({ title, content, prefix, onProgress });
   }
   if (normalized === "docx") {
-    return exportDocx({ title, content, suffix, onProgress });
+    return exportDocx({ title, content, prefix, onProgress });
   }
   throw new Error("Unsupported export format.");
 }

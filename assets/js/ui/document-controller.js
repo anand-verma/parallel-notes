@@ -87,9 +87,11 @@ export class DocumentController {
     }
   }
 
-  async handleWorkspaceExternalChange() {
+  async handleWorkspaceExternalChange(eventData) {
+    if (eventData?.type !== "workspace-updated") return;
+
     if (this.ui.workspaceConflict) return;
-    if (this.ui.isDirty) {
+    if (this.ui.isDirty || this.ui.ai?.busy) {
       this.ui.workspaceConflict = true;
       const el = document.querySelector("#saveState");
       if (el) { el.textContent = "Changed in another tab"; el.className = "save-state error"; }

@@ -121,13 +121,34 @@ export class AppUI {
     $("#sidebarToggleBtn").onclick = () => this.toggleSidebar();
     $("#maxSourceBtn").onclick = e => this.toggleMaximizePane("sourcePane", e.currentTarget);
     $("#maxResultBtn").onclick = e => this.toggleMaximizePane("resultPane", e.currentTarget);
-    $("#modeSelect").onchange = e => { this.state.mode = e.target.value; void this.persistWorkspaceMeta(); this.updateCustomPreview(); };
+    // Mode picker
+    $("#modePickerBtn").onclick = () => {
+      const menu = $("#modePickerMenu");
+      const isOpen = menu.classList.contains("open");
+      $(".mode-picker-trigger").classList.toggle("open", !isOpen);
+      menu.classList.toggle("open", !isOpen);
+    };
+    document.querySelectorAll("#modePickerMenu .mode-option").forEach(btn => {
+      btn.onclick = () => {
+        const val = btn.dataset.value;
+        this.setMode(val);
+        this.state.mode = val;
+        void this.persistWorkspaceMeta();
+        this.updateCustomPreview();
+        $("#modePickerMenu").classList.remove("open");
+        $(".mode-picker-trigger").classList.remove("open");
+      };
+    });
 
     // Model picker toggle
     $("#modelPickerBtn").onclick = () => this.toggleModelPicker();
-    // Close picker on outside click
+    // Close pickers on outside click
     document.addEventListener("click", e => {
       if (!e.target.closest("#modelPicker")) this.closeModelPicker();
+      if (!e.target.closest("#modePicker")) {
+        $("#modePickerMenu")?.classList.remove("open");
+        $("#modePickerBtn")?.classList.remove("open");
+      }
     });
 
     $("#customPromptBtn").onclick = () => this.openCustomDialog();
@@ -433,6 +454,7 @@ export class AppUI {
     if (this.state.activeId === session.docId && this.editors.result === session.resultEditor) {
       session.resultEditor.commands.setContent(html, { emitUpdate: false });
       this.toggleEmptyResult();
+      this.updateCounts();
     }
     try { await saveDocument(this.state, session.docId); } catch (error) { this.toast(error.message || "Could not save generated draft.", "error"); }
   }
@@ -550,7 +572,14 @@ export class AppUI {
       stage.style.gridTemplateColumns = `${r}% 8px ${100-r}%`;
     }
   }
-  setMode(mode) { document.querySelector("#modeSelect").value = mode; }
+  setMode(mode) {
+    const option = document.querySelector(`#modePickerMenu .mode-option[data-value="${mode}"]`);
+    if (option) {
+      document.querySelector("#modePickerLabel").textContent = option.textContent;
+      document.querySelectorAll("#modePickerMenu .mode-option").forEach(btn => btn.classList.remove("selected"));
+      option.classList.add("selected");
+    }
+  }
   updateCustomPreview() { const strip = document.querySelector("#customStrip"), preview = document.querySelector("#customInstructionPreview"), has = !!this.state.customInstruction; strip.classList.toggle("hidden", !has); preview.textContent = has ? this.state.customInstruction : "Add an instruction to steer the selected mode."; }
   openCustomDialog() { this.customInstruction.value = this.state.customInstruction || ""; if (!this.customDialog.open) this.customDialog.showModal(); }
   setupSplitter() {

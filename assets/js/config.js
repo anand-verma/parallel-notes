@@ -1,13 +1,13 @@
 /** Global configuration constants and default settings. */
-export const APP_VERSION = "0.9.4";
+export const APP_VERSION = "0.9.6";
 export const SHELL_CACHE = `pns-shell-v${APP_VERSION}`;
 export const WEBLLM_VERSION = "0.2.84";
 
 // Curated local models. WebLLM availability is checked at runtime.
 export const PREFERRED_MODEL_IDS = [
   "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
-  "Llama-3.2-1B-Instruct-q4f16_1-MLC",
-  "SmolLM2-1.7B-Instruct-q4f16_1-MLC"
+  "gemma-2-2b-it-q4f16_1-MLC",
+  "Llama-3.2-1B-Instruct-q4f16_1-MLC"
 ];
 
 export const API_MODELS = [
@@ -28,3 +28,10 @@ export const PROVIDER_LABELS = {
 export const MODELS_STORAGE_VERSION = 1;
 export const WORKSPACE_STORAGE_VERSION = 3;
 export const SETTINGS_STORAGE_VERSION = 3;
+
+/**
+ * Optional Cloudflare Worker endpoint used only when direct URL fetching fails.
+ * Example:
+ * export const ARTICLE_PROXY_URL = "https://your-worker.example.workers.dev/fetch";
+ */
+export const ARTICLE_PROXY_URL = "https://parallel-notes-fetch.alluarjun-fakemail.workers.dev/fetch";

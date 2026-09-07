@@ -1,5 +1,5 @@
 /** Service Worker configuration and caching strategies. */
-const SW_APP_VERSION = "0.9.4";
+const SW_APP_VERSION = "0.9.6";
 const SW_SHELL_CACHE = `pns-shell-v${SW_APP_VERSION}`;
 const SW_SHELL = [
   "./",
@@ -35,6 +35,7 @@ const SW_SHELL = [
   "./assets/js/services/import/import-types.js",
   "./assets/js/services/import/import-utils.js",
   "./assets/js/services/import/import-service.js",
+  "./assets/js/services/import/url/url-importer.js",
   "./assets/js/services/import/docx/docx-importer.js",
   "./assets/js/services/import/pdf/pdf-importer.js",
   "./assets/js/services/import/pdf/pdf-extractor.js",
