@@ -113,6 +113,13 @@ flowchart TD
 
 ### Source-Bound AI
 
+### Fact-Retention Lock (v0.10 AI layer)
+
+The AI layer uses a source-grounded compression contract rather than a generic summarization prompt. Before producing output, the model is instructed to internally audit retention of source-stated numbers, dates, proper nouns, Constitutional/legal references, committee and commission names/recommendations, Supreme Court/High Court judgments, examples, qualifiers, negations, chronology, and causal links. Outside knowledge, correction, updating, inference and gap-filling are explicitly forbidden.
+
+The Settings → AI Behaviour panel exposes source-fidelity profile, short/super-short density targets, provider generation controls, local context-window preference, reasoning/thinking level, and a non-authoritative prompt addendum. Provider-specific safeguards prevent Gemini 3.x from being forced into low-temperature sampling contrary to Google's current guidance.
+
+
 The AI is instructed to use the supplied source as the factual authority. It should:
 
 - Preserve meaning and important qualifiers.

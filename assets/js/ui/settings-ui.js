@@ -41,6 +41,8 @@ export class SettingsUI {
     $("#geminiKey").value = this.settings.apiKeys?.gemini || "";
     $("#rememberApiKeys").checked = this.settings.rememberApiKeys !== false;
 
+    this._populateAIGenerationSettings();
+
     // Models tab
     this._renderLocalModelCards();
     this._renderGeminiModels();
@@ -60,9 +62,51 @@ export class SettingsUI {
     $("#settingsDialog").showModal();
   }
 
+  /* ── AI Generation Settings ─────────────────── */
+  _populateAIGenerationSettings() {
+    const ai = this.settings.aiGeneration || {};
+    const set = (id, value) => { const el = document.querySelector(id); if (el) el.value = value ?? ""; };
+    set("#aiFidelityProfile", ai.fidelityProfile || "strict");
+    set("#aiShortTarget", ai.shortTargetPercent ?? 45);
+    set("#aiSuperTarget", ai.superTargetPercent ?? 18);
+    set("#aiTemperature", ai.temperature ?? 0.15);
+    set("#aiTopP", ai.topP ?? 0.9);
+    set("#aiMaxOutputTokens", ai.maxOutputTokens ?? 4096);
+    set("#aiLocalContextTokens", ai.localContextTokens ?? 16384);
+    set("#aiContextTokens", ai.contextTokens ?? 16384);
+    const autoChunk = document.querySelector("#aiAutoChunk");
+    if (autoChunk) autoChunk.checked = ai.autoChunkLongDocuments !== false;
+    set("#aiReasoningEffort", ai.reasoningEffort || "minimal");
+    set("#aiGeminiThinking", ai.geminiThinkingLevel || "minimal");
+    set("#aiPromptAddendum", ai.promptAddendum || "");
+    const tempHint = document.querySelector("#aiTemperatureHint");
+    if (tempHint) tempHint.textContent = "Used by OpenAI-compatible and local models. Gemini 3.x uses Google's recommended model-default temperature.";
+  }
+
+  _readAIGenerationSettings() {
+    const $ = id => document.querySelector(id);
+    const number = (id, fallback) => { const n = Number($(id)?.value); return Number.isFinite(n) ? n : fallback; };
+    this.settings.aiGeneration = {
+      ...(this.settings.aiGeneration || {}),
+      fidelityProfile: $("#aiFidelityProfile")?.value || "strict",
+      shortTargetPercent: Math.max(30, Math.min(70, number("#aiShortTarget", 45))),
+      superTargetPercent: Math.max(8, Math.min(35, number("#aiSuperTarget", 18))),
+      temperature: Math.max(0, Math.min(2, number("#aiTemperature", 0.15))),
+      topP: Math.max(0.1, Math.min(1, number("#aiTopP", 0.9))),
+      maxOutputTokens: Math.round(Math.max(128, Math.min(32768, number("#aiMaxOutputTokens", 4096)))),
+      contextTokens: Number($("#aiContextTokens")?.value || 16384),
+      autoChunkLongDocuments: $("#aiAutoChunk")?.checked !== false,
+      localContextTokens: Number($("#aiLocalContextTokens")?.value || 16384),
+      reasoningEffort: $("#aiReasoningEffort")?.value || "minimal",
+      geminiThinkingLevel: $("#aiGeminiThinking")?.value || "minimal",
+      promptAddendum: String($("#aiPromptAddendum")?.value || "").slice(0, 4000)
+    };
+  }
+
   /* ── Save (API keys from form) ───────────────── */
   saveFromForm() {
     const $ = id => document.querySelector(id);
+    this._readAIGenerationSettings();
     const remember = $("#rememberApiKeys").checked;
     this.settings.rememberApiKeys = remember;
     const openai = $("#openaiKey").value.trim();

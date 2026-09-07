@@ -110,24 +110,24 @@ export async function unloadModel() {
   }
 }
 
-export async function loadModel(modelId, onProgress) {
-  if (engine && activeModel === modelId) return engine;
+export async function loadModel(modelId, onProgress, settings = {}) {
   if (!modelId) throw new Error("A local model ID is required.");
   if (activeGeneration || generationPromise) {
     throw new Error("Stop the current local AI generation before switching models.");
   }
 
-  // If another model is loaded, release its GPU/WASM resources before creating
-  // the next engine. Do this before assigning initPromise so switching is
-  // serialized and never leaves two heavyweight engines resident.
+  const contextWindow = normalizeContextWindow(settings.localContextTokens);
+  const profileKey = JSON.stringify({ contextWindow });
+
+  if (engine && activeModel === modelId && engine.__pnsProfileKey === profileKey) return engine;
+  if (engine && activeModel === modelId && engine.__pnsProfileKey !== profileKey) await unloadModel();
   if (engine && activeModel !== modelId) await unloadModel();
 
   if (initPromise) {
-    // A concurrent request for the same model can share the in-flight load.
     if (initModelId === modelId) return initPromise;
     await initPromise.catch(() => {});
-    if (engine && activeModel === modelId) return engine;
-    if (engine && activeModel !== modelId) await unloadModel();
+    if (engine && activeModel === modelId && engine.__pnsProfileKey === profileKey) return engine;
+    if (engine) await unloadModel();
   }
 
   initModelId = modelId;
@@ -144,16 +144,29 @@ export async function loadModel(modelId, onProgress) {
       if (pct != null && Number.isFinite(pct)) pct = Math.max(0, Math.min(100, pct));
       onProgress?.(pct, text);
     };
+
     let createdEngine = null;
     try {
-      // Keep the v0.8 WebLLM initialization path. WebLLM itself selects the
-      // compatible adapter; an extra requestAdapter preflight can reject GPU
-      // configurations that WebLLM was able to initialize successfully.
       createdEngine = await mod.CreateMLCEngine(modelId, {
         appConfig: mod.prebuiltAppConfig,
         initProgressCallback: progress,
         engineConfig: { requestAdapterOptions: { powerPreference: "high-performance" } }
       });
+
+      // WebLLM exposes context_window_size and generation defaults through the
+      // model chat configuration. Apply the user-selected context window using
+      // reload() when supported, while preserving a safe fallback to the model
+      // default if a particular model rejects the override.
+      if (contextWindow && typeof createdEngine.reload === "function") {
+        try {
+          await createdEngine.reload(modelId, { context_window_size: contextWindow });
+        } catch {
+          // Some model records expose a smaller/fixed context window. The model
+          // default is safer than failing the entire local AI setup.
+        }
+      }
+
+      createdEngine.__pnsProfileKey = profileKey;
       engine = createdEngine;
       activeModel = modelId;
       return createdEngine;
@@ -174,11 +187,23 @@ export async function loadModel(modelId, onProgress) {
   }
 }
 
+function normalizeContextWindow(value) {
+  const allowed = [4096, 8192, 16384, 32768, 65536, 131072, 262144];
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return allowed.reduce((best, current) => Math.abs(current - n) < Math.abs(best - n) ? current : best, allowed[0]);
+}
+
 export function currentModel() { return activeModel; }
 
-export async function generateWebLLM(modelId, messages, { onToken, onProgress, signal } = {}) {
+function clampNumber(value, fallback, min, max) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
+}
+
+export async function generateWebLLM(modelId, messages, { onToken, onProgress, signal, settings = {} } = {}) {
   if (signal?.aborted) throw new DOMException("Generation cancelled.", "AbortError");
-  const e = await loadModel(modelId, onProgress);
+  const e = await loadModel(modelId, onProgress, settings);
   if (signal?.aborted) throw new DOMException("Generation cancelled.", "AbortError");
 
   if (activeGeneration || generationPromise) throw new Error("A local AI generation is already running.");
@@ -194,7 +219,11 @@ export async function generateWebLLM(modelId, messages, { onToken, onProgress, s
   const operation = (async () => {
     try {
       const stream = await e.chat.completions.create({
-        messages, temperature: 0.15, top_p: 0.9, max_tokens: 2048, stream: true
+        messages,
+        temperature: clampNumber(settings.temperature, 0.15, 0, 2),
+        top_p: clampNumber(settings.topP, 0.9, 0.1, 1),
+        max_tokens: clampNumber(settings.maxOutputTokens, 2048, 128, 16384),
+        stream: true
       });
       let full = "";
       for await (const chunk of stream) {
