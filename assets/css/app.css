@@ -244,11 +244,44 @@ button{cursor:pointer}
 }
 .pane-actions{display:flex;gap:4px;flex-shrink:0}
 /* ── Editor Toolbar ─────────────────────────────── */
+.editor-toolbar-wrapper{
+  display:flex;align-items:center;
+  position:sticky;top:0;z-index:10;
+  background:var(--surface-2);
+  border-bottom:1px solid var(--border);
+  min-height:34px;
+  padding-right: 4px;
+}
 .editor-toolbar{
   display:flex;align-items:center;gap:2px;padding:5px 8px;
-  border-bottom:1px solid var(--border);background:var(--surface-2);
-  flex-wrap:wrap;min-height:34px;
-  position:sticky;top:0;z-index:10;
+  flex-wrap:nowrap;
+  flex:1;min-width:0;
+}
+.toolbar-overflow {
+  display: none; position: relative; margin-left: 2px; flex-shrink: 0;
+}
+.overflow-menu {
+  right: 0; left: auto;
+}
+/* Nested dropdowns inside overflow menu should open to the left */
+.overflow-menu .toolbar-dropdown .dropdown-menu {
+  top: 0; right: 100%; left: auto; margin-right: 4px; max-width: calc(100vw - 60px);
+}
+/* Make buttons inside overflow menu show their title on hover */
+.overflow-menu > .toolbar-btn {
+  width: 100%; justify-content: flex-start; padding: 6px 12px; height: auto;
+}
+.overflow-menu > .toolbar-btn::after {
+  content: attr(title); margin-left: 8px; font-weight: 500; font-size: 12px; white-space: nowrap;
+  display: none;
+}
+.overflow-menu > .toolbar-btn:hover::after {
+  display: inline;
+}
+/* Ensure dropdown triggers inside overflow menu don't show the text tooltip, since they show sub-menus */
+.overflow-menu .toolbar-dropdown .toolbar-btn::after { display: none !important; }
+.overflow-menu .toolbar-dropdown {
+  width: 100%; display: flex;
 }
 .toolbar-btn{
   width:26px;height:24px;border:1px solid transparent;border-radius:6px;
@@ -256,17 +289,26 @@ button{cursor:pointer}
   font-size:11px;font-weight:600;cursor:pointer;transition:.14s ease;
   font-family:Inter,ui-sans-serif,system-ui,sans-serif;
   padding:0;line-height:1;
+  flex-shrink: 0;
 }
 .toolbar-btn:hover{background:var(--surface-3);color:var(--text);border-color:var(--border)}
 .toolbar-btn.active{background:var(--accent-soft);color:var(--accent);border-color:rgba(91,91,214,.2)}
-.toolbar-sep{width:1px;height:16px;background:var(--border);margin:0 3px}
+.toolbar-sep{width:1px;height:16px;background:var(--border);margin:0 3px; flex-shrink: 0;}
 
 /* Toolbar Dropdown */
-.toolbar-dropdown { position: relative; display: inline-flex; align-items: center; }
+.toolbar-dropdown { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
 .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 10; min-width: 140px; border-radius: 6px; padding: 4px; flex-direction: column; gap: 2px; }
-.toolbar-dropdown:hover .dropdown-menu { display: flex; }
+.toolbar-dropdown:hover > .dropdown-menu { display: flex; }
 .dropdown-menu button { background: none; border: none; padding: 6px 12px; text-align: left; cursor: pointer; color: var(--text); border-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .dropdown-menu button:hover { background: var(--surface-3); }
+
+/* Symbols Menu (must be after dropdown-menu to override display: flex) */
+.symbols-menu {
+  position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 10; border-radius: 6px; padding: 4px;
+  grid-template-columns: repeat(6, 1fr); gap: 2px; min-width: 200px; width: max-content;
+}
+.toolbar-dropdown:hover > .symbols-menu { display: grid !important; }
+.symbols-menu button { justify-content: center; padding: 6px; }
 
 /* ── Editor wrap ────────────────────────────────── */
 .editor-wrap{min-height:0;flex:1;position:relative;overflow:auto}
@@ -287,6 +329,7 @@ button{cursor:pointer}
 .tiptap a{color:var(--accent);text-decoration:underline}
 .tiptap code{background:var(--surface-3);padding:2px 5px;border-radius:5px;font-size:.9em}
 .tiptap pre{background:#111827;color:#e5e7eb;padding:14px;border-radius:9px;overflow:auto}
+.tiptap pre code{background:transparent;color:inherit;padding:0;border-radius:0;font-size:inherit}
 .tiptap hr{border:0;border-top:1px solid var(--border);margin:20px 0}
 .tiptap table{border-collapse:collapse;width:100%;margin:14px 0;font-size:12px}
 .tiptap th,.tiptap td{border:1px solid var(--border-strong);padding:7px 9px;vertical-align:top}

@@ -12,6 +12,8 @@ import { TaskList } from "https://esm.sh/@tiptap/extension-task-list@3.29.2";
 import { TaskItem } from "https://esm.sh/@tiptap/extension-task-item@3.29.2";
 import { Extension } from "https://esm.sh/@tiptap/core@3.29.2";
 import katex from "https://esm.sh/katex@0.16.11";
+import { Subscript } from "https://esm.sh/@tiptap/extension-subscript@3.29.2";
+import { Superscript } from "https://esm.sh/@tiptap/extension-superscript@3.29.2";
 
 /* ── Custom Math Extensions ───────────────────────────────── */
 const getMathAttributes = () => ({
@@ -142,32 +144,38 @@ const extensions = [
   TaskList,
   TaskItem.configure({nested:true}),
   TextAlign.configure({types:["heading","paragraph"]}),
+  Subscript,
+  Superscript,
   Table.configure({resizable:true}),
   TableRow, TableHeader, TableCell
 ];
 
 /* ── Toolbar definition ──────────────────────────────────── */
 const TOOLBAR_ITEMS = [
-  { cmd:"bold",         icon:"B",   title:"Bold (Ctrl+B)",           style:"font-weight:800" },
-  { cmd:"italic",       icon:"I",   title:"Italic (Ctrl+I)",         style:"font-style:italic" },
-  { cmd:"underline",    icon:"U",   title:"Underline (Ctrl+U)",      style:"text-decoration:underline" },
-  { cmd:"strike",       icon:"S",   title:"Strikethrough (Ctrl+-)",  style:"text-decoration:line-through" },
-  "sep",
   { type: "dropdown", icon: "H", title: "Headings (Ctrl+Alt+1-3)", items: [
       { cmd: "heading1", label: "Heading 1" },
       { cmd: "heading2", label: "Heading 2" },
       { cmd: "heading3", label: "Heading 3" }
   ]},
   "sep",
+  { cmd:"bold",         icon:"B",   title:"Bold (Ctrl+B)",           style:"font-weight:800" },
+  { cmd:"italic",       icon:"I",   title:"Italic (Ctrl+I)",         style:"font-style:italic" },
+  { cmd:"underline",    icon:"U",   title:"Underline (Ctrl+U)",      style:"text-decoration:underline" },
+  { cmd:"strike",       icon:"S",   title:"Strikethrough (Ctrl+-)",  style:"text-decoration:line-through" },
+  { cmd:"subscript",    icon:"X₂",  title:"Subscript (Ctrl+=)" },
+  { cmd:"superscript",  icon:"X²",  title:"Superscript (Ctrl+Shift+=)" },
+  "sep",
+  { type: "dropdown", icon: "◧", title: "Alignment", items: [
+      { cmd: "alignLeft", label: "Align Left" },
+      { cmd: "alignCenter", label: "Align Center" },
+      { cmd: "alignRight", label: "Align Right" }
+  ]},
   { cmd:"bulletList",   icon:"•≡",  title:"Bullet list (Ctrl+.)" },
   { cmd:"orderedList",  icon:"1≡",  title:"Numbered list (Ctrl+/)" },
   { cmd:"taskList",     icon:"☑",   title:"Task list (Ctrl+1)" },
-  { cmd:"indent",       icon:"⇥",   title:"Indent (Tab)" },
-  { cmd:"outdent",      icon:"⇤",   title:"Outdent (Shift+Tab)" },
+  { cmd:"indent",       icon:"⫸",   title:"Indent (Tab)" },
+  { cmd:"outdent",      icon:"⫷",   title:"Outdent (Shift+Tab)" },
   "sep",
-  { cmd:"blockquote",   icon:"❝",   title:"Blockquote" },
-  { cmd:"code",         icon:"<>",  title:"Inline code" },
-  { cmd:"codeBlock",    icon:"{ }", title:"Code block" },
   { type: "dropdown", icon: "▦", title: "Table Tools", items: [
       { cmd: "tableInsert", label: "Insert Table" },
       { cmd: "tableAddRow", label: "Add Row" },
@@ -177,37 +185,76 @@ const TOOLBAR_ITEMS = [
       { cmd: "tableDelete", label: "Delete Table" }
   ]},
   { cmd:"horizontalRule", icon:"─", title:"Horizontal rule" },
+  "sep",
+  { cmd:"blockquote",   icon:"❝",   title:"Blockquote" },
+  { cmd:"code",         icon:"<>",  title:"Inline code" },
+  { cmd:"codeBlock",    icon:"{ }", title:"Code block" },
   { cmd:"link",         icon:"🔗",  title:"Insert link (Ctrl+K)" },
   "sep",
-  { cmd:"undo",         icon:"↩",   title:"Undo (Ctrl+Z)" },
-  { cmd:"redo",         icon:"↪",   title:"Redo (Ctrl+Y)" }
+  { type: "dropdown", icon: "∑", title: "Scientific Symbols", menuClass: "symbols-menu", items: [
+      { cmd: "insertText", label: "λ", arg: "λ" }, { cmd: "insertText", label: "Λ", arg: "Λ" },
+      { cmd: "insertText", label: "θ", arg: "θ" }, { cmd: "insertText", label: "Θ", arg: "Θ" },
+      { cmd: "insertText", label: "ω", arg: "ω" }, { cmd: "insertText", label: "Ω", arg: "Ω" },
+      { cmd: "insertText", label: "ρ", arg: "ρ" }, { cmd: "insertText", label: "ψ", arg: "ψ" },
+      { cmd: "insertText", label: "Ψ", arg: "Ψ" }, { cmd: "insertText", label: "μ", arg: "μ" },
+      { cmd: "insertText", label: "σ", arg: "σ" }, { cmd: "insertText", label: "Σ", arg: "Σ" },
+      { cmd: "insertText", label: "φ", arg: "φ" }, { cmd: "insertText", label: "Φ", arg: "Φ" },
+      { cmd: "insertText", label: "τ", arg: "τ" }, { cmd: "insertText", label: "α", arg: "α" },
+      { cmd: "insertText", label: "β", arg: "β" }, { cmd: "insertText", label: "γ", arg: "γ" },
+      { cmd: "insertText", label: "Γ", arg: "Γ" }, { cmd: "insertText", label: "ε", arg: "ε" },
+      { cmd: "insertText", label: "δ", arg: "δ" }, { cmd: "insertText", label: "Δ", arg: "Δ" },
+      { cmd: "insertText", label: "η", arg: "η" }, { cmd: "insertText", label: "ν", arg: "ν" },
+      { cmd: "insertText", label: "π", arg: "π" }, { cmd: "insertText", label: "Π", arg: "Π" },
+      { cmd: "insertText", label: "κ", arg: "κ" }, { cmd: "insertText", label: "χ", arg: "χ" },
+      { cmd: "insertText", label: "∞", arg: "∞" }, { cmd: "insertText", label: "≈", arg: "≈" },
+      { cmd: "insertText", label: "≠", arg: "≠" }, { cmd: "insertText", label: "±", arg: "±" }
+  ]}
 ];
 
 function createToolbar(editor){
+  const wrapper = document.createElement("div");
+  wrapper.className = "editor-toolbar-wrapper";
+
   const bar = document.createElement("div");
   bar.className = "editor-toolbar";
+  wrapper.appendChild(bar);
+
+  const overflowBtnContainer = document.createElement("div");
+  overflowBtnContainer.className = "toolbar-overflow toolbar-dropdown";
+  
+  const overflowBtn = document.createElement("button");
+  overflowBtn.type = "button";
+  overflowBtn.className = "toolbar-btn";
+  overflowBtn.textContent = "⋮";
+  overflowBtnContainer.appendChild(overflowBtn);
+
+  const overflowMenu = document.createElement("div");
+  overflowMenu.className = "dropdown-menu overflow-menu";
+  overflowBtnContainer.appendChild(overflowMenu);
+  
+  wrapper.appendChild(overflowBtnContainer);
+
+  const allItems = [];
 
   for(const item of TOOLBAR_ITEMS){
+    let el;
     if(item === "sep"){
-      const sep = document.createElement("span");
-      sep.className = "toolbar-sep";
-      bar.appendChild(sep);
-      continue;
+      el = document.createElement("span");
+      el.className = "toolbar-sep";
     }
-    
-    if(item.type === "dropdown") {
-      const dropContainer = document.createElement("div");
-      dropContainer.className = "toolbar-dropdown";
+    else if(item.type === "dropdown") {
+      el = document.createElement("div");
+      el.className = "toolbar-dropdown";
       
       const dropBtn = document.createElement("button");
       dropBtn.type = "button";
       dropBtn.className = "toolbar-btn";
       dropBtn.title = item.title;
       dropBtn.textContent = item.icon;
-      dropContainer.appendChild(dropBtn);
+      el.appendChild(dropBtn);
       
       const menu = document.createElement("div");
-      menu.className = "dropdown-menu";
+      menu.className = "dropdown-menu" + (item.menuClass ? " " + item.menuClass : "");
       for (const sub of item.items) {
         const subBtn = document.createElement("button");
         subBtn.type = "button";
@@ -215,43 +262,71 @@ function createToolbar(editor){
         subBtn.textContent = sub.label;
         subBtn.addEventListener("mousedown", e => {
           e.preventDefault();
-          execToolbarCmd(editor, sub.cmd);
+          execToolbarCmd(editor, sub.cmd, sub.arg);
         });
         menu.appendChild(subBtn);
       }
-      dropContainer.appendChild(menu);
-      bar.appendChild(dropContainer);
-      continue;
+      el.appendChild(menu);
+    } else {
+      el = document.createElement("button");
+      el.type = "button";
+      el.className = "toolbar-btn";
+      el.title = item.title;
+      el.dataset.cmd = item.cmd;
+      if(item.style) el.style.cssText = item.style;
+      el.textContent = item.icon;
+      el.addEventListener("mousedown", e => {
+        e.preventDefault();
+        execToolbarCmd(editor, item.cmd);
+      });
     }
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "toolbar-btn";
-    btn.title = item.title;
-    btn.dataset.cmd = item.cmd;
-    if(item.style) btn.style.cssText = item.style;
-    btn.textContent = item.icon;
-    btn.addEventListener("mousedown", e => {
-      e.preventDefault();
-      execToolbarCmd(editor, item.cmd);
-    });
-    bar.appendChild(btn);
+    el.dataset.originalItem = true;
+    bar.appendChild(el);
+    allItems.push(el);
   }
 
-  editor.on("transaction", () => updateToolbarState(bar, editor));
-  return bar;
+  const resizeObserver = new ResizeObserver(entries => {
+    // Reset all items to bar
+    overflowMenu.innerHTML = '';
+    for(const el of allItems) {
+      el.style.display = '';
+      bar.appendChild(el);
+    }
+    
+    let hasOverflow = false;
+    // Check which items overflow
+    while (bar.scrollWidth > bar.clientWidth) {
+      hasOverflow = true;
+      const lastChild = bar.lastElementChild;
+      if (!lastChild) break;
+      bar.removeChild(lastChild);
+      overflowMenu.insertBefore(lastChild, overflowMenu.firstChild);
+    }
+    
+    overflowBtnContainer.style.display = hasOverflow ? 'inline-flex' : 'none';
+  });
+
+  resizeObserver.observe(wrapper);
+
+  editor.on("transaction", () => updateToolbarState(wrapper, editor));
+  return wrapper;
 }
 
-function execToolbarCmd(editor, cmd){
+function execToolbarCmd(editor, cmd, arg){
   const chain = editor.chain().focus();
   switch(cmd){
     case "bold":           chain.toggleBold().run(); break;
     case "italic":         chain.toggleItalic().run(); break;
     case "underline":      chain.toggleUnderline().run(); break;
     case "strike":         chain.toggleStrike().run(); break;
+    case "subscript":      chain.toggleSubscript().run(); break;
+    case "superscript":    chain.toggleSuperscript().run(); break;
     case "heading1":       chain.toggleHeading({level:1}).run(); break;
     case "heading2":       chain.toggleHeading({level:2}).run(); break;
     case "heading3":       chain.toggleHeading({level:3}).run(); break;
+    case "alignLeft":      chain.setTextAlign("left").run(); break;
+    case "alignCenter":    chain.setTextAlign("center").run(); break;
+    case "alignRight":     chain.setTextAlign("right").run(); break;
     case "bulletList":     chain.toggleBulletList().run(); break;
     case "orderedList":    chain.toggleOrderedList().run(); break;
     case "taskList":       chain.toggleTaskList().run(); break;
@@ -259,6 +334,7 @@ function execToolbarCmd(editor, cmd){
     case "code":           chain.toggleCode().run(); break;
     case "codeBlock":      chain.toggleCodeBlock().run(); break;
     case "horizontalRule": chain.setHorizontalRule().run(); break;
+    case "insertText":     chain.insertContent(arg).run(); break;
     case "tableInsert":    chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); break;
     case "tableAddRow":    chain.addRowAfter().run(); break;
     case "tableAddCol":    chain.addColumnAfter().run(); break;
@@ -292,9 +368,14 @@ function updateToolbarState(bar, editor){
       case "italic":      active = editor.isActive("italic"); break;
       case "underline":   active = editor.isActive("underline"); break;
       case "strike":      active = editor.isActive("strike"); break;
+      case "subscript":   active = editor.isActive("subscript"); break;
+      case "superscript": active = editor.isActive("superscript"); break;
       case "heading1":    active = editor.isActive("heading",{level:1}); break;
       case "heading2":    active = editor.isActive("heading",{level:2}); break;
       case "heading3":    active = editor.isActive("heading",{level:3}); break;
+      case "alignLeft":   active = editor.isActive({ textAlign: "left" }); break;
+      case "alignCenter": active = editor.isActive({ textAlign: "center" }); break;
+      case "alignRight":  active = editor.isActive({ textAlign: "right" }); break;
       case "bulletList":  active = editor.isActive("bulletList"); break;
       case "orderedList": active = editor.isActive("orderedList"); break;
       case "taskList":    active = editor.isActive("taskList"); break;
@@ -316,6 +397,14 @@ export function createEditor(element, content, onUpdate){
     editorProps:{
       handleKeyDown: (view, event) => {
         if (event.ctrlKey || event.metaKey) {
+          if (event.key === "=" && event.shiftKey) {
+            editor.chain().focus().toggleSuperscript().run();
+            event.preventDefault(); return true;
+          }
+          if (event.key === "=" && !event.shiftKey) {
+            editor.chain().focus().toggleSubscript().run();
+            event.preventDefault(); return true;
+          }
           if (event.key === ".") {
             editor.chain().focus().toggleBulletList().run();
             event.preventDefault(); return true;
