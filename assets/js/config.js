@@ -1,5 +1,5 @@
 /** Global configuration constants and default settings. */
-export const APP_VERSION = "0.9.6";
+export const APP_VERSION = "0.10.1";
 export const SHELL_CACHE = `pns-shell-v${APP_VERSION}`;
 export const WEBLLM_VERSION = "0.2.84";
 

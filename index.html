@@ -19,7 +19,7 @@
   <link rel="canonical" href="https://anand-verma.github.io/">
   <title>Parallel Notes — AI Note Compression & Revision Notes</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
-  <link rel="stylesheet" href="./assets/css/app.css?v=0.9.4">
+  <link rel="stylesheet" href="./assets/css/app.css?v=0.10.0">
   <link rel="icon" href="./assets/image/parallel-notes-icon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -248,6 +248,7 @@
         <div class="settings-tabs" id="settingsTabs">
           <div class="settings-tabs-list">
             <button class="settings-tab active" data-tab="models" type="button">Models</button>
+            <button class="settings-tab" data-tab="ai" type="button">AI Behaviour</button>
             <button class="settings-tab" data-tab="data" type="button">Data</button>
           </div>
           <button type="submit" class="primary-btn" style="align-self:center; padding:6px 12px; font-size:10px; height:fit-content;">Save Settings</button>
@@ -322,6 +323,117 @@
               <button type="button" class="secondary-btn" id="addCustomModelBtn" style="margin-top:8px;width:100%;">Add custom API model</button>
               <p class="modal-copy" style="margin-top:8px;">Works with OpenAI-compatible chat-completions endpoints. The endpoint must allow browser CORS requests.</p>
               <div id="customModelList" class="custom-model-list"></div>
+            </div>
+
+          </div>
+
+          <!-- ═══ AI BEHAVIOUR TAB ═══ -->
+          <div class="settings-panel" id="settingsPanel-ai">
+
+            <div class="settings-section">
+              <div class="settings-section-header">Source Grounding</div>
+              <div class="modal-field">
+                <label for="aiFidelityProfile">Source fidelity profile</label>
+                <select id="aiFidelityProfile" class="form-input">
+                  <option value="strict">Maximum — protect facts first</option>
+                  <option value="balanced">High — slightly more aggressive compression</option>
+                  <option value="custom">User-tuned emphasis</option>
+                </select>
+              </div>
+              <p class="modal-copy" style="margin-top:8px;">The factual source boundary is always locked. This setting changes compression emphasis, not the authority rules.</p>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Revision Density</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="modal-field">
+                  <label for="aiShortTarget">Short target (%)</label>
+                  <input type="number" id="aiShortTarget" class="form-input" min="30" max="70" step="1">
+                </div>
+                <div class="modal-field">
+                  <label for="aiSuperTarget">Super-short target (%)</label>
+                  <input type="number" id="aiSuperTarget" class="form-input" min="8" max="35" step="1">
+                </div>
+              </div>
+              <p class="modal-copy" style="margin-top:8px;">These are density targets, not hard word limits. The model is instructed to preserve exam anchors even when this requires exceeding the target.</p>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Generation Controls</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="modal-field">
+                  <label for="aiTemperature">Temperature</label>
+                  <input type="number" id="aiTemperature" class="form-input" min="0" max="2" step="0.05">
+                </div>
+                <div class="modal-field">
+                  <label for="aiTopP">Top P</label>
+                  <input type="number" id="aiTopP" class="form-input" min="0.1" max="1" step="0.05">
+                </div>
+                <div class="modal-field">
+                  <label for="aiMaxOutputTokens">Max output tokens</label>
+                  <input type="number" id="aiMaxOutputTokens" class="form-input" min="128" max="32768" step="128">
+                </div>
+                <div class="modal-field">
+                  <label for="aiContextTokens">Long-document context budget</label>
+                  <select id="aiContextTokens" class="form-input">
+                    <option value="4096">4,096</option>
+                    <option value="8192">8,192</option>
+                    <option value="16384">16,384</option>
+                    <option value="32768">32,768</option>
+                    <option value="65536">65,536</option>
+                    <option value="131072">131,072</option>
+                    <option value="262144">262,144</option>
+                  </select>
+                </div>
+                <div class="modal-field" style="display:flex;align-items:center;gap:8px;padding-top:24px;">
+                  <input type="checkbox" id="aiAutoChunk" style="width:16px;height:16px;">
+                  <label for="aiAutoChunk">Auto-split long documents</label>
+                </div>
+                <div class="modal-field">
+                  <label for="aiLocalContextTokens">Local context window</label>
+                  <select id="aiLocalContextTokens" class="form-input">
+                    <option value="4096">4,096</option>
+                    <option value="8192">8,192</option>
+                    <option value="16384">16,384</option>
+                    <option value="32768">32,768</option>
+                    <option value="65536">65,536</option>
+                  </select>
+                </div>
+              </div>
+              <p class="modal-copy" id="aiTemperatureHint" style="margin-top:8px;"></p>
+              <p class="modal-copy" style="margin-top:6px;">Long-document context is used by the automatic source chunker for all providers. Local context changes require reloading the local model. Chunking preserves source order and prevents silent mid-document truncation.</p>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Reasoning / Thinking</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="modal-field">
+                  <label for="aiReasoningEffort">OpenAI reasoning effort</label>
+                  <select id="aiReasoningEffort" class="form-input">
+                    <option value="none">None</option>
+                    <option value="minimal">Minimal</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div class="modal-field">
+                  <label for="aiGeminiThinking">Gemini 3 thinking level</label>
+                  <select id="aiGeminiThinking" class="form-input">
+                    <option value="minimal">Minimal</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+              <p class="modal-copy" style="margin-top:8px;">For rapid revision generation, Minimal/Low is the recommended starting point.</p>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-header">Advanced Prompt Addendum</div>
+              <textarea id="aiPromptAddendum" rows="6" class="form-input" style="resize:vertical;" placeholder="Example: Prefer retaining Supreme Court judgments, committee names and numerical data over explanatory prose."></textarea>
+              <p class="modal-copy" style="margin-top:8px;">Added to every AI task as an emphasis instruction. It cannot override the locked source-only policy.</p>
             </div>
 
           </div>
@@ -447,6 +559,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/mammoth@1.12.0/mammoth.browser.min.js"></script>
-  <script type="module" src="./assets/js/app.js?v=0.9.4"></script>
+  <script type="module" src="./assets/js/app.js?v=0.10.0"></script>
 </body>
 </html>

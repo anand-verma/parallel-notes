@@ -91,7 +91,7 @@ export class AIController {
     this.ui.setAIStatus("Loading local model · 0%", "loading");
     const cached = !!model.isCached;
     this.ui.updateModelProgress(0, cached ? "Loading from local cache…" : "Downloading model…");
-    await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text));
+    await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text), this.settings.aiGeneration);
     this.ui.closeModelDialog();
     model.isCached = true;
     this.ui.renderModelPicker(this.models, this.selectedModel);
@@ -147,7 +147,7 @@ export class AIController {
       if (model.type === "local" && currentModel() !== model.id) {
         if (!model.isCached) throw new Error("Download this model first using the model selector.");
         this.ui.setAIStatus("Loading local model…", "loading");
-        await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text));
+        await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text), this.settings.aiGeneration);
       }
       this.ui.setAIStatus("Assisting import…", "loading");
       return await this.service.generateRaw({
@@ -175,7 +175,7 @@ export class AIController {
           throw new Error("Download this model first using the ⬇ button in the model selector.");
         }
         this.ui.setAIStatus("Loading local model…", "loading");
-        await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text));
+        await loadModel(model.id, (pct, text) => this.ui.updateModelProgress(pct, text), this.settings.aiGeneration);
       }
       this.ui.setAIStatus("Generating…", "loading");
       const result = await this.service.generate({

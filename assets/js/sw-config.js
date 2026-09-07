@@ -1,5 +1,5 @@
 /** Service Worker configuration and caching strategies. */
-const SW_APP_VERSION = "0.9.6";
+const SW_APP_VERSION = "0.10.1";
 const SW_SHELL_CACHE = `pns-shell-v${SW_APP_VERSION}`;
 const SW_SHELL = [
   "./",
