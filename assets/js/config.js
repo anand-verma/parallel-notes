@@ -1,5 +1,5 @@
 /** Global configuration constants and default settings. */
-export const APP_VERSION = "0.9.4";
+export const APP_VERSION = "0.9.6";
 export const SHELL_CACHE = `pns-shell-v${APP_VERSION}`;
 export const WEBLLM_VERSION = "0.2.84";
 
@@ -28,3 +28,10 @@ export const PROVIDER_LABELS = {
 export const MODELS_STORAGE_VERSION = 1;
 export const WORKSPACE_STORAGE_VERSION = 3;
 export const SETTINGS_STORAGE_VERSION = 3;
+
+/**
+ * Optional Cloudflare Worker endpoint used only when direct URL fetching fails.
+ * Example:
+ * export const ARTICLE_PROXY_URL = "https://your-worker.example.workers.dev/fetch";
+ */
+export const ARTICLE_PROXY_URL = "https://parallel-notes-fetch.alluarjun-fakemail.workers.dev/fetch";

@@ -1,8 +1,10 @@
 /** Generic document import facade. New input formats should register an importer here. */
 import { PDFImporter } from "./pdf/pdf-importer.js";
 import { DOCXImporter } from "./docx/docx-importer.js";
+import { URLImporter } from "./url/url-importer.js";
 
 const importers = [new PDFImporter(), new DOCXImporter()];
+const urlImporter = new URLImporter();
 
 export class ImportService {
   static getImporter(file) {
@@ -14,5 +16,9 @@ export class ImportService {
     const importer = this.getImporter(file);
     if (!importer) throw new Error("This file type is not supported yet. Supported formats: PDF and DOCX.");
     return importer.import(file, options);
+  }
+
+  static async importUrl(url, options = {}) {
+    return urlImporter.import(url, options);
   }
 }
