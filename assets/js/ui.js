@@ -414,14 +414,30 @@ export class AppUI {
       const msg = err.message || "";
       if (!isCancelled && isSessionVisible()) {
         if (msg.includes("Download this model first")) {
+          const selectedModel = this.ai.selectedModel;
           this.showInstruction("Model Not Downloaded", "This local AI model needs to be downloaded before it can be used. This usually only takes a few minutes.", [
-            { text: "Download from Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }
+            {
+              text: "Download from Settings",
+              action: () => {
+                document.querySelector("#instructionDialog").close();
+                const targetSelector = selectedModel ? `[data-model-id="${selectedModel.id}"]` : "#localModelCards";
+                this.settingsUI.open("models", targetSelector);
+              }
+            }
           ]);
         } else if (msg.includes("API key is missing") || msg.includes("Gemini API key is missing")) {
-          const isGemini = msg.includes("Gemini");
-          const links = [{ text: "Add API key in Settings", action: () => { document.querySelector("#instructionDialog").close(); document.querySelector("#settingsDialog").showModal(); } }];
+          const isGemini = msg.includes("Gemini") || this.ai.selectedModel?.provider === "gemini";
+          const isCustom = this.ai.selectedModel?.type === "custom";
+          const focusTarget = isGemini ? "#geminiKey" : (isCustom ? "#customModelList" : "#openaiKey");
+          const links = [{
+            text: "Add API key in Settings",
+            action: () => {
+              document.querySelector("#instructionDialog").close();
+              this.settingsUI.open("models", focusTarget);
+            }
+          }];
           if (isGemini) links.push({ text: "Get Gemini API Key", href: "https://aistudio.google.com/app/apikey" });
-          else links.push({ text: "Get OpenAI API Key", href: "https://platform.openai.com/api-keys" });
+          else if (!isCustom) links.push({ text: "Get OpenAI API Key", href: "https://platform.openai.com/api-keys" });
           this.showInstruction("API Key Required", "You must configure an API key to use this cloud model.", links);
         } else this.toast(msg || "Generation failed.", "error");
       }

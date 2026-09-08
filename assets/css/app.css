@@ -582,22 +582,217 @@ button{cursor:pointer}
 }
 .model-option-download:hover{background:var(--accent-soft);border-color:var(--accent)}
 
-/* ── v0.5.0 Settings Tabs ───────────────────────── */
+/* ── Settings Dialog & Vertical Tabs ─────────────── */
+.modal.settings-modal{
+  width:min(720px,calc(100vw - 28px));
+  max-width:720px;
+  padding:0;
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  box-shadow:0 30px 90px rgba(0,0,0,.25);
+}
+.settings-form{
+  padding:0 !important;
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  max-height:85vh;
+  margin:0;
+}
+.settings-modal-head{
+  padding:14px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+  flex-shrink:0;
+}
+.settings-modal-head h2{
+  margin:2px 0 0;
+  font-size:17px;
+  font-weight:750;
+  color:var(--text);
+}
+.settings-head-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.settings-save-btn{
+  padding:6px 14px;
+  font-size:11px;
+  font-weight:750;
+  border-radius:8px;
+  height:fit-content;
+  white-space:nowrap;
+}
+.settings-layout{
+  display:flex;
+  flex-direction:row;
+  flex:1;
+  min-height:0;
+  overflow:hidden;
+  background:var(--surface);
+}
 .settings-tabs{
-  display:flex;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);
+  width:175px;
+  flex-shrink:0;
   background:var(--surface-2);
+  border-right:1px solid var(--border);
+  padding:14px 8px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
 }
-.settings-tabs-list{display:flex;gap:2px}
+.settings-tabs-list{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  width:100%;
+}
 .settings-tab{
-  padding:10px 16px;border:none;background:transparent;color:var(--muted);
-  font-size:11px;font-weight:700;cursor:pointer;position:relative;
-  border-bottom:2px solid transparent;transition:.14s ease;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:100%;
+  padding:9px 12px;
+  border:1px solid transparent;
+  border-left:3px solid transparent;
+  border-radius:8px;
+  background:transparent;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:650;
+  font-family:inherit;
+  text-align:left;
+  cursor:pointer;
+  position:relative;
+  transition:background .14s ease,color .14s ease,border-color .14s ease;
+  user-select:none;
+  box-sizing:border-box;
 }
-.settings-tab:hover{color:var(--text)}
-.settings-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.settings-panels{padding:20px;max-height:min(60vh,520px);overflow-y:auto}
-.settings-panel{display:none}
-.settings-panel.active{display:block}
+.settings-tab:hover{
+  color:var(--text);
+  background:var(--surface-3);
+}
+.settings-tab:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:1px;
+}
+.settings-tab.active{
+  color:var(--accent);
+  background:var(--accent-soft);
+  font-weight:750;
+  border-color:rgba(91,91,214,.18);
+  border-left-color:var(--accent);
+}
+.settings-tab-icon{
+  flex-shrink:0;
+  color:inherit;
+  opacity:.85;
+  transition:opacity .14s ease;
+}
+.settings-tab.active .settings-tab-icon{
+  opacity:1;
+  color:var(--accent);
+}
+.settings-tab-label{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.settings-panels{
+  flex:1;
+  min-width:0;
+  padding:20px 24px;
+  max-height:min(65vh,520px);
+  overflow-y:auto;
+  box-sizing:border-box;
+}
+.settings-panel{
+  display:none;
+}
+.settings-panel.active{
+  display:block;
+  animation:fadeInPanel .14s ease;
+}
+.settings-panel:focus-visible{
+  outline:none;
+}
+@keyframes fadeInPanel{
+  from{opacity:0;transform:translateY(2px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+@keyframes highlightPulse{
+  0%{box-shadow:0 0 0 0 rgba(91,91,214,.55);border-color:var(--accent)}
+  50%{box-shadow:0 0 0 5px rgba(91,91,214,.28);border-color:var(--accent)}
+  100%{box-shadow:0 0 0 0 rgba(91,91,214,0)}
+}
+.highlight-pulse{
+  animation:highlightPulse 1.6s ease-out !important;
+  border-color:var(--accent) !important;
+}
+
+/* Settings Dialog Responsiveness & Accessibility on smaller screens */
+@media (max-width:680px){
+  .settings-tabs{width:145px;padding:12px 6px}
+  .settings-tab{padding:8px 10px;font-size:10.5px;gap:7px}
+  .settings-panels{padding:16px 18px}
+}
+
+@media (max-width:540px){
+  .modal.settings-modal{
+    width:calc(100vw - 16px);
+    max-height:92vh;
+    border-radius:12px;
+  }
+  .settings-modal-head{
+    padding:10px 14px;
+  }
+  .settings-modal-head h2{
+    font-size:15px;
+  }
+  .settings-save-btn{
+    padding:5px 10px;
+    font-size:10px;
+  }
+  .settings-layout{
+    flex-direction:column;
+  }
+  .settings-tabs{
+    width:100%;
+    border-right:none;
+    border-bottom:1px solid var(--border);
+    padding:6px 10px;
+    flex-shrink:0;
+  }
+  .settings-tabs-list{
+    flex-direction:row;
+    gap:4px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .settings-tab{
+    flex:1;
+    justify-content:center;
+    padding:7px 10px;
+    font-size:10px;
+    border-left:1px solid transparent;
+    border-bottom:2px solid transparent;
+    border-radius:6px;
+  }
+  .settings-tab.active{
+    border-left-color:transparent;
+    border-bottom-color:var(--accent);
+  }
+  .settings-panels{
+    padding:14px;
+    max-height:60vh;
+  }
+}
 
 /* ── v0.5.0 Settings Sections ───────────────────── */
 .settings-section{margin-bottom:20px}

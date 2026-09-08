@@ -112,6 +112,7 @@ export function renderLocalModelCards(container, models, { onDownload, onRemove 
   for (const model of locals) {
     const card = document.createElement("div");
     card.className = "model-card";
+    card.dataset.modelId = model.id;
 
     const nameRow = document.createElement("div");
     nameRow.className = "model-card-name";

@@ -28,15 +28,56 @@ export class SettingsUI {
       if (!btn) return;
       this.switchTab(btn.dataset.tab);
     });
+
+    // Keyboard navigation (Arrow keys, Home, End) for accessibility
+    tabs.addEventListener("keydown", e => {
+      const tabButtons = Array.from(tabs.querySelectorAll(".settings-tab"));
+      const currentIndex = tabButtons.indexOf(document.activeElement);
+      if (currentIndex === -1) return;
+
+      let nextIndex = null;
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        nextIndex = (currentIndex + 1) % tabButtons.length;
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        nextIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+      } else if (e.key === "Home") {
+        nextIndex = 0;
+      } else if (e.key === "End") {
+        nextIndex = tabButtons.length - 1;
+      }
+
+      if (nextIndex !== null) {
+        e.preventDefault();
+        const targetBtn = tabButtons[nextIndex];
+        targetBtn.focus();
+        this.switchTab(targetBtn.dataset.tab);
+      }
+    });
   }
 
   switchTab(tabName) {
-    document.querySelectorAll(".settings-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tabName));
-    document.querySelectorAll(".settings-panel").forEach(p => p.classList.toggle("active", p.id === `settingsPanel-${tabName}`));
+    document.querySelectorAll(".settings-tab").forEach(t => {
+      const isActive = t.dataset.tab === tabName;
+      t.classList.toggle("active", isActive);
+      t.setAttribute("aria-selected", isActive ? "true" : "false");
+      t.setAttribute("tabindex", isActive ? "0" : "-1");
+    });
+    document.querySelectorAll(".settings-panel").forEach(p => {
+      const isActive = p.id === `settingsPanel-${tabName}`;
+      p.classList.toggle("active", isActive);
+      if (isActive) {
+        p.removeAttribute("hidden");
+      } else {
+        p.setAttribute("hidden", "");
+      }
+    });
   }
 
   /* ── Open settings dialog ────────────────────── */
-  open(tabName = "models") {
+  open(tabName = "models", focusTarget = null) {
+    if (this.ui?.settings) {
+      this.settings = this.ui.settings;
+    }
     const $ = id => document.querySelector(id);
     // API keys
     $("#openaiKey").value = this.settings.apiKeys?.openai || "";
@@ -54,6 +95,14 @@ export class SettingsUI {
     // Data tab
     renderCacheList($("#localModelCacheList"), this.ui.ai.models.filter(m => m.type === "local"));
 
+    // Keep cache list fresh
+    if (typeof this.ui?.ai?.refreshCacheStatus === "function") {
+      void this.ui.ai.refreshCacheStatus().then(() => {
+        this._renderLocalModelCards();
+        renderCacheList($("#localModelCacheList"), this.ui.ai.models.filter(m => m.type === "local"));
+      }).catch(() => {});
+    }
+
     // Reset add forms
     this._closeAllAddForms();
     $("#customApiLabel").value = $("#customApiModelId").value = $("#customApiBaseUrl").value = $("#customApiKey").value = "";
@@ -62,6 +111,21 @@ export class SettingsUI {
 
     this.switchTab(tabName);
     $("#settingsDialog").showModal();
+
+    if (focusTarget) {
+      setTimeout(() => {
+        const el = typeof focusTarget === "string" ? document.querySelector(focusTarget) : focusTarget;
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (typeof el.focus === "function") {
+            el.focus();
+            if (typeof el.select === "function") el.select();
+          }
+          el.classList.add("highlight-pulse");
+          setTimeout(() => el.classList.remove("highlight-pulse"), 2000);
+        }
+      }, 60);
+    }
   }
 
   /* ── AI Generation Settings ─────────────────── */
