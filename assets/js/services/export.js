@@ -473,6 +473,150 @@ export function prepareExport(format) {
   return Promise.reject(new Error("Unsupported export format."));
 }
 
+/**
+ * Opens a clean, print-focused view of the exact editor pane currently displayed.
+ *
+ * Important: the editor DOM is already rendered by Tiptap/KaTeX. We clone that
+ * rendered DOM instead of re-parsing the source, so mathematical expressions
+ * remain actual KaTeX markup in the print document.
+ */
+export function printFriendlyDocument({ title, editorElement }) {
+  if (!editorElement) {
+    throw new Error("The selected pane is not available for printing.");
+  }
+
+  // Open synchronously while the click still has user activation. Do not use
+  // the `noopener` window feature here: some browsers return a disconnected
+  // WindowProxy for noopener, which makes the newly opened page stay blank.
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    throw new Error("Please allow pop-ups for Parallel Notes to print this pane.");
+  }
+
+  const clonedContent = editorElement.cloneNode(true);
+  clonedContent.removeAttribute("contenteditable");
+  clonedContent.removeAttribute("role");
+  clonedContent.removeAttribute("tabindex");
+  clonedContent.querySelectorAll("[contenteditable]").forEach(el => el.removeAttribute("contenteditable"));
+  clonedContent.querySelectorAll("[data-placeholder]").forEach(el => el.removeAttribute("data-placeholder"));
+
+  // Copy the application's currently loaded styles, including KaTeX CSS.
+  // Absolute hrefs are used so relative stylesheet URLs still work in the
+  // new document.
+  const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+    .map(node => {
+      if (node.tagName === "LINK") {
+        const clone = node.cloneNode(true);
+        clone.href = node.href;
+        return clone.outerHTML;
+      }
+      return node.outerHTML;
+    })
+    .join("\n");
+
+  const safeTitle = String(title || "Parallel Notes")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+  const printHtml = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${safeTitle}</title>
+  ${styles}
+  <style>
+    @page { margin: 16mm 15mm; }
+    html, body { margin: 0; padding: 0; background: #fff !important; overflow: visible !important; }
+    body {
+      color: #111 !important;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.55;
+    }
+    .print-page { width: 100%; max-width: 100%; margin: 0 auto; box-sizing: border-box; }
+    .ProseMirror {
+      min-height: 0 !important;
+      width: 100% !important;
+      padding: 0 !important;
+      outline: none !important;
+      overflow: visible !important;
+      color: #111 !important;
+      background: #fff !important;
+      caret-color: transparent !important;
+    }
+    .ProseMirror:focus { outline: none !important; }
+    .ProseMirror a { color: inherit !important; text-decoration: underline; }
+    .ProseMirror table { border-collapse: collapse; width: 100%; }
+    .ProseMirror th, .ProseMirror td { border: 1px solid #777; padding: 5px 7px; }
+    .ProseMirror img { max-width: 100%; height: auto; }
+    .ProseMirror pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .ProseMirror blockquote { break-inside: avoid; }
+    .ProseMirror h1, .ProseMirror h2, .ProseMirror h3,
+    .ProseMirror h4, .ProseMirror h5, .ProseMirror h6,
+    .ProseMirror table, .ProseMirror img, .ProseMirror .math-block,
+    .ProseMirror .katex-display { break-inside: avoid; }
+    .ProseMirror p, .ProseMirror li { orphans: 2; widows: 2; }
+    /* Keep KaTeX's rendered glyphs intact; never replace them with source text. */
+    .katex { white-space: nowrap; }
+    .katex-display { overflow-x: visible !important; margin: 1em 0; }
+    @media print { .ProseMirror { width: 100% !important; } }
+  </style>
+</head>
+<body>
+  <main class="print-page" aria-label="Print-friendly document">
+    ${clonedContent.outerHTML}
+  </main>
+</body>
+</html>`;
+
+  try {
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+  } catch (error) {
+    try { printWindow.close(); } catch (_) { /* best effort */ }
+    throw new Error("Could not prepare the print document: " + error.message);
+  }
+
+  // Wait for images, fonts and external stylesheets (notably KaTeX CSS) before
+  // invoking print. The print call is made on the same window the user opened,
+  // which avoids the blank-page/redirect behaviour of the previous approach.
+  const printWhenReady = async () => {
+    try {
+      const doc = printWindow.document;
+      const images = Array.from(doc.images).filter(img => !img.complete);
+      if (images.length) {
+        await Promise.all(images.map(img => new Promise(resolve => {
+          img.addEventListener("load", resolve, { once: true });
+          img.addEventListener("error", resolve, { once: true });
+        })));
+      }
+
+      if (doc.fonts?.ready) await doc.fonts.ready;
+
+      const sheets = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
+      if (sheets.length) {
+        await Promise.all(sheets.map(link => new Promise(resolve => {
+          if (link.sheet) return resolve();
+          link.addEventListener("load", resolve, { once: true });
+          link.addEventListener("error", resolve, { once: true });
+        })));
+      }
+    } catch (_) {
+      // Printing should still proceed if a non-critical image/font stylesheet
+      // fails to load.
+    }
+
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 100);
+  };
+
+  void printWhenReady();
+}
+
 export async function exportDocument({ format, title, content, prefix = "Notes", onProgress }) {
   if (!content || content.trim() === "" || content === "<p></p>") {
     throw new Error("Nothing to export.");

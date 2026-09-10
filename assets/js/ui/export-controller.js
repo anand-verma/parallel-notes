@@ -1,6 +1,6 @@
 /** Export controller: dialog state, progress feedback, and document export. */
 import { activeDocument } from "../state.js";
-import { exportDocument, prepareExport } from "../services/export.js";
+import { exportDocument, prepareExport, printFriendlyDocument } from "../services/export.js";
 
 function assertEditorContent(editor) {
   const html = editor?.getHTML?.() || "";
@@ -46,6 +46,16 @@ export class ExportController {
       };
 
       if (this.ui.exportDialog.open) this.ui.exportDialog.close();
+
+      if (format === "print-friendly") {
+        printFriendlyDocument({
+          title: snapshot.title,
+          editorElement: snapshot.editorElement,
+        });
+        this.ui.toast("Print-friendly view opened.", "success");
+        return;
+      }
+
       this.ui.showExportStatus?.(true, format === "pdf" ? "Preparing PDF…" : "Preparing Word document…", 2);
 
       await exportDocument({
