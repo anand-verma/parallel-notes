@@ -219,48 +219,18 @@ export class AppUI {
     });
 
     if (window.opener) {
-      const sendReady = () => window.opener.postMessage({ type: "PARALLEL_NOTES_READY" }, "*");
+      const sendReady = () => {
+        ALLOWED_IMPORT_ORIGINS.forEach((allowedOrigin) => {
+          window.opener.postMessage({ type: "PARALLEL_NOTES_READY" }, allowedOrigin);
+        });
+      };
+
       if (document.readyState === "complete") {
         sendReady();
       } else {
         window.addEventListener("load", sendReady);
       }
     }
-
-    /*
-      // Attach this to your "Edit in Parallel Notes" button
-      function editInParallelNotes(noteTitle, noteHtmlContent) {
-        // 1. Open Parallel Notes in a new tab (or window)
-        const pnWindow = window.open("https://anand-verma.github.io/", "_blank");
-        
-        if (!pnWindow) {
-          alert("Please allow popups to open Parallel Notes.");
-          return;
-        }
-
-        // 2. We need to wait for Parallel Notes to load before sending the message.
-        // A simple approach is to try sending it a few times until it succeeds,
-        // or just send it after a short delay.
-        
-        let attempts = 0;
-        const interval = setInterval(() => {
-          attempts++;
-          
-          // Send the message
-          pnWindow.postMessage({
-            type: "IMPORT_DOCUMENT",
-            title: noteTitle,
-            sourceHtml: noteHtmlContent
-          }, "https://anand-verma.github.io");
-
-          // Stop trying after 5 seconds
-          if (attempts > 10) {
-            clearInterval(interval);
-          }
-        }, 500); 
-      }
-
-    */
   }
 
   setCredential(provider, value, remember) { setCredential(provider, value, { persist: remember, settings: this.settings }); }
