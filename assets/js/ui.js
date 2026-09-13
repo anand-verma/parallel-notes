@@ -204,6 +204,7 @@ export class AppUI {
     window.addEventListener("resize", () => {
       this.applyPaneRatio();
     });
+    
     window.addEventListener("message", (event) => {
       if (!ALLOWED_IMPORT_ORIGINS.includes(event.origin)) {
         console.warn(`Blocked import attempt from untrusted origin: ${event.origin}`);
@@ -216,6 +217,16 @@ export class AppUI {
         void this.documents.importExternalDoc(title, sourceHtml);
       }
     });
+
+    if (window.opener) {
+      const sendReady = () => window.opener.postMessage({ type: "PARALLEL_NOTES_READY" }, "*");
+      if (document.readyState === "complete") {
+        sendReady();
+      } else {
+        window.addEventListener("load", sendReady);
+      }
+    }
+
     /*
       // Attach this to your "Edit in Parallel Notes" button
       function editInParallelNotes(noteTitle, noteHtmlContent) {
