@@ -168,7 +168,7 @@ export class DocumentController {
         e.stopPropagation();
         dropdown.classList.remove("visible");
         menuBtn.classList.remove("open");
-        if (!confirm(`Delete "${doc.title}"?`)) return;
+
         try {
           if (deleteDocument(this.ui.state, doc.id)) {
             await saveState(this.ui.state);
