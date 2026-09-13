@@ -1,6 +1,7 @@
 /** Core AppUI class handling layout, pane management, and interactions. */
 import { saveState, saveDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, subscribeWorkspaceChanges, reloadWorkspace, activeDocument, ensureUniqueTitle } from "./state.js";
 import { wordCount, renderMathInEditor } from "./editor.js";
+import { ALLOWED_IMPORT_ORIGINS } from "./config.js";
 
 import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
@@ -203,6 +204,52 @@ export class AppUI {
     window.addEventListener("resize", () => {
       this.applyPaneRatio();
     });
+    window.addEventListener("message", (event) => {
+      if (!ALLOWED_IMPORT_ORIGINS.includes(event.origin)) {
+        console.warn(`Blocked import attempt from untrusted origin: ${event.origin}`);
+        return;
+      }
+
+      if (event.data && event.data.type === "IMPORT_DOCUMENT") {
+        const title = event.data.title || "Imported Notes";
+        const sourceHtml = event.data.sourceHtml || "";
+        void this.documents.importExternalDoc(title, sourceHtml);
+      }
+    });
+    /*
+      // Attach this to your "Edit in Parallel Notes" button
+      function editInParallelNotes(noteTitle, noteHtmlContent) {
+        // 1. Open Parallel Notes in a new tab (or window)
+        const pnWindow = window.open("https://anand-verma.github.io/", "_blank");
+        
+        if (!pnWindow) {
+          alert("Please allow popups to open Parallel Notes.");
+          return;
+        }
+
+        // 2. We need to wait for Parallel Notes to load before sending the message.
+        // A simple approach is to try sending it a few times until it succeeds,
+        // or just send it after a short delay.
+        
+        let attempts = 0;
+        const interval = setInterval(() => {
+          attempts++;
+          
+          // Send the message
+          pnWindow.postMessage({
+            type: "IMPORT_DOCUMENT",
+            title: noteTitle,
+            sourceHtml: noteHtmlContent
+          }, "https://anand-verma.github.io");
+
+          // Stop trying after 5 seconds
+          if (attempts > 10) {
+            clearInterval(interval);
+          }
+        }, 500); 
+      }
+
+    */
   }
 
   setCredential(provider, value, remember) { setCredential(provider, value, { persist: remember, settings: this.settings }); }

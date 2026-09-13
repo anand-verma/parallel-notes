@@ -245,4 +245,21 @@ export class DocumentController {
       this.ui.toast(err.message || "Could not create new document.", "error");
     }
   }
+
+  async importExternalDoc(title, sourceHtml) {
+    await this.saveNow();
+    if (this.ui.workspaceConflict) return;
+    try {
+      const doc = createDocument(this.ui.state, title);
+      doc.source = sourceHtml || "";
+      await saveState(this.ui.state);
+      this.ui.isDirty = false;
+      this.lastTouchedDocumentId = null;
+      this.loadActiveDocument();
+      this.renderDocs();
+      this.ui.toast("Document imported successfully.", "success");
+    } catch (err) {
+      this.ui.toast(err.message || "Could not import external document.", "error");
+    }
+  }
 }
