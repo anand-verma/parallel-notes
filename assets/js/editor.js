@@ -453,3 +453,55 @@ export function selectedText(editor){
 export function wordCount(text){
   return (text.trim().match(/\S+/g)||[]).length;
 }
+
+export function renderMathInEditor(editor) {
+  const { state } = editor;
+  const { tr } = state;
+  let modified = false;
+
+  const blockRegex = /(?:\$\$|\\\[)([\s\S]*?)(?:\$\$|\\\])/g;
+  const inlineRegex = /(?:\\\()([\s\S]*?)(?:\\\))/g;
+
+  const textNodes = [];
+  state.doc.descendants((node, pos) => {
+    if (node.isText) {
+      textNodes.push({ node, pos });
+    }
+  });
+
+  for (let i = textNodes.length - 1; i >= 0; i--) {
+    const { node, pos } = textNodes[i];
+    const text = node.text;
+
+    const matches = [];
+    let match;
+
+    while ((match = blockRegex.exec(text)) !== null) {
+      matches.push({ type: 'mathBlock', start: match.index, end: match.index + match[0].length, latex: match[1].trim() });
+    }
+    
+    while ((match = inlineRegex.exec(text)) !== null) {
+      matches.push({ type: 'mathInline', start: match.index, end: match.index + match[0].length, latex: match[1].trim() });
+    }
+
+    if (matches.length === 0) continue;
+
+    matches.sort((a, b) => b.start - a.start);
+
+    for (const m of matches) {
+      const from = pos + m.start;
+      const to = pos + m.end;
+      const mathType = state.schema.nodes[m.type];
+      if (mathType) {
+        const mathNode = mathType.create({ latex: m.latex });
+        tr.replaceWith(from, to, mathNode);
+        modified = true;
+      }
+    }
+  }
+
+  if (modified) {
+    editor.view.dispatch(tr);
+  }
+  return modified;
+}

@@ -1,6 +1,6 @@
 /** Core AppUI class handling layout, pane management, and interactions. */
 import { saveState, saveDocument, loadSettings, saveSettings, clearWorkspaceStorage, getStorageUsage, subscribeWorkspaceChanges, reloadWorkspace, activeDocument, ensureUniqueTitle } from "./state.js";
-import { wordCount } from "./editor.js";
+import { wordCount, renderMathInEditor } from "./editor.js";
 
 import { AIController } from "./ai/controller.js";
 import { createSourcePackage } from "./ai/source-package.js";
@@ -538,6 +538,8 @@ export class AppUI {
     if (action === "copy-result") this.copyEditor(this.editors.result);
     if (action === "download-source") this.openExportDialog("source");
     if (action === "download-draft") this.openExportDialog("result");
+    if (action === "render-math-source") this.renderMathAndRefresh("source");
+    if (action === "render-math-result") this.renderMathAndRefresh("result");
   }
   async copyEditor(editor) { try { const type = await copyRichText(editor); this.toast(type === "rich" ? "Copied rich text to clipboard" : "Copied plain text", "success"); } catch (err) { this.toast(err.message, "error"); } }
   openExportDialog(paneId) { return this.exports.openExportDialog(paneId); }
@@ -545,6 +547,17 @@ export class AppUI {
 
   updateCounts() { return this.documents.updateCounts(); }
   toggleEmptyResult() { return this.documents.toggleEmptyResult(); }
+
+  renderMathAndRefresh(paneId) {
+    const editor = this.editors[paneId];
+    if (!editor) return;
+
+    renderMathInEditor(editor);
+    
+    this.updateCounts();
+    this.saveNow();
+    this.toast(`Refreshed ${paneId === 'source' ? 'Source' : 'Result'} pane`, 'success');
+  }
 
   /* ── Document lifecycle / list ──────────────── */
   renderDocs() { return this.documents.renderDocs(); }
